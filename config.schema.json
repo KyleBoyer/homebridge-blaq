@@ -5,6 +5,13 @@
   "schema": {
     "type": "object",
     "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "default": "Homebridge BlaQ",
+        "placeholder": "Homebridge BlaQ",
+        "required": true
+      },
       "devices": {
         "title": "Manually Configured Garage Doors:",
         "description": "Use this section to manually add devices if auto-discovery doesn't work",
