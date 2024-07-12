@@ -1,0 +1,51 @@
+{
+  "pluginAlias": "BlaQHomebridgePlugin",
+  "pluginType": "platform",
+  "singular": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "devices": {
+        "title": "Manually Configured Garage Doors:",
+        "description": "Use this section to manually add devices if auto-discovery doesn't work",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "displayName": {
+              "title": "Display Name",
+              "description": "Display name for this device",
+              "type": "string",
+              "default": "Garage Door",
+              "minLength": 1,
+              "required": true
+            },
+            "host": {
+              "title": "Host",
+              "description": "BlaQ Host IP/Name",
+              "type": "string",
+              "format": "hostname",
+              "required": true
+            },
+            "port": {
+              "title": "Port",
+              "description": "Port number the service is running on",
+              "type": "number",
+              "default": 80,
+              "multipleOf": 1,
+              "required": true
+            },
+            "mac": {
+              "title": "(Optional) Mac Address",
+              "description": "Mac address of the device - for use auto reconnecting if the IP changes",
+              "type": "string",
+              "required": false,
+              "pattern": "^([A-F0-9]{2}:){5}[A-F0-9]{2}$",
+              "placeholder": "00:00:00:00:00:00"
+            }
+          }
+        }
+      }
+    }
+  }
+}
