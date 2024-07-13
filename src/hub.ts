@@ -6,6 +6,7 @@ import { BlaQHomebridgePluginPlatform } from './platform.js';
 import { BlaQGarageDoorAccessory } from './accessory/garage-door.js';
 import { BlaQGarageLightAccessory } from './accessory/garage-light.js';
 import { BlaQGarageLockAccessory } from './accessory/garage-lock.js';
+import { BlaQGarageMotionSensorAccessory } from './accessory/garage-motion-sensor.js';
 
 interface BlaQPingEvent {
   title: string;
@@ -127,10 +128,25 @@ export class BlaQHub {
     }));
   }
 
+  private initGarageMotionSensorAccessory({ model, serialNumber }: ModelAndSerialNumber){
+    const accessorySuffix = 'motion-sensor';
+    const nonMainAccessoryMACAddress = this.configDevice.mac && `${this.configDevice.mac}-${accessorySuffix}`;
+    const nonMainAccessorySerialNumber = `${serialNumber}-${accessorySuffix}`;
+    const {platform, accessory} = this.initAccessoryCallback(
+      { ...this.configDevice, mac: nonMainAccessoryMACAddress },
+      model,
+      nonMainAccessorySerialNumber,
+    );
+    this.accessories.push(new BlaQGarageMotionSensorAccessory({
+      platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
+    }));
+  }
+
   private initAccessories({ model, serialNumber }: ModelAndSerialNumber){
     this.initGarageDoorAccessory({ model, serialNumber });
     this.initGarageLightAccessory({ model, serialNumber });
     this.initGarageLockAccessory({ model, serialNumber });
+    this.initGarageMotionSensorAccessory({ model, serialNumber });
   }
 
   private handlePingUpdate(msg: PingMessageEvent){
