@@ -113,7 +113,7 @@ export class BlaQGaragePreCloseWarningAccessory implements BaseBlaQAccessory {
 
   private async changeIsOn(target: CharacteristicValue){
     if(target && target !== this.isOn){ // only call the API when target = true (button on)
-      await fetch(`${this.apiBaseURL}/button/pre_close_warning/press`, {method: 'POST'});
+      await fetch(`${this.apiBaseURL}/button/pre-close_warning/press`, {method: 'POST'});
     }
   }
 
