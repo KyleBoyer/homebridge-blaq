@@ -7,6 +7,7 @@ import { BlaQGarageDoorAccessory } from './accessory/garage-door.js';
 import { BlaQGarageLightAccessory } from './accessory/garage-light.js';
 import { BlaQGarageLockAccessory } from './accessory/garage-lock.js';
 import { BlaQGarageMotionSensorAccessory } from './accessory/garage-motion-sensor.js';
+import { BlaQGaragePreCloseWarningAccessory } from './accessory/garage-pre-close-warning.js';
 
 interface BlaQPingEvent {
   title: string;
@@ -142,11 +143,26 @@ export class BlaQHub {
     }));
   }
 
+  private initGaragePreCloseWarningAccessory({ model, serialNumber }: ModelAndSerialNumber){
+    const accessorySuffix = 'pre-close-warning';
+    const nonMainAccessoryMACAddress = this.configDevice.mac && `${this.configDevice.mac}-${accessorySuffix}`;
+    const nonMainAccessorySerialNumber = `${serialNumber}-${accessorySuffix}`;
+    const {platform, accessory} = this.initAccessoryCallback(
+      { ...this.configDevice, mac: nonMainAccessoryMACAddress },
+      model,
+      nonMainAccessorySerialNumber,
+    );
+    this.accessories.push(new BlaQGaragePreCloseWarningAccessory({
+      platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
+    }));
+  }
+
   private initAccessories({ model, serialNumber }: ModelAndSerialNumber){
     this.initGarageDoorAccessory({ model, serialNumber });
     this.initGarageLightAccessory({ model, serialNumber });
     this.initGarageLockAccessory({ model, serialNumber });
     this.initGarageMotionSensorAccessory({ model, serialNumber });
+    this.initGaragePreCloseWarningAccessory({ model, serialNumber });
   }
 
   private handlePingUpdate(msg: PingMessageEvent){

@@ -19,9 +19,9 @@ This plugin enables the use of a GDO BlaQ device with Homebridge (and derivative
 * Garage Light Status/Control
 * Garage Remote Lock Status/Control
 * Firmware Version Status
+* Motion Sensor Status
+* Play Pre-close Warning
 * Obstruction Sensor Status (coming soon on v0.2.X)
-* Motion Sensor Status (coming soon on v0.2.X)
-* Play Pre-close Warning (coming soon on v0.2.X)
 
 It *could*, but does not currently, support:
 
