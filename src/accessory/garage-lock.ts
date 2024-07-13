@@ -58,7 +58,7 @@ export class BlaQGarageLockAccessory implements BaseBlaQAccessory {
   }: BlaQGarageLockAccessoryConstructorParams) {
     this.platform = platform;
     this.logger = this.platform.logger;
-    this.logger.debug('Initializing BlaQGarageDoorAccessory...');
+    this.logger.debug('Initializing BlaQGarageLockAccessory...');
     this.accessory = accessory;
     this.model = model;
     this.serialNumber = serialNumber;
@@ -90,7 +90,7 @@ export class BlaQGarageLockAccessory implements BaseBlaQAccessory {
     this.accessoryInformationService
       .getCharacteristic(this.platform.characteristic.FirmwareRevision)
       .onGet(this.getFirmwareVersion.bind(this));
-    this.logger.debug('Initialized BlaQGarageDoorAccessory!');
+    this.logger.debug('Initialized BlaQGarageLockAccessory!');
   }
 
   getFirmwareVersion(): CharacteristicValue {
