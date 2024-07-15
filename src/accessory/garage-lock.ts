@@ -145,10 +145,10 @@ export class BlaQGarageLockAccessory implements BaseBlaQAccessory {
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
       if (['lock-lock', 'lock-lock_remotes'].includes(stateInfo.id)) {
-        const buttonEvent = stateInfo as BlaQButtonEvent & { state: 'ON' | 'OFF' };
+        const buttonEvent = stateInfo as BlaQButtonEvent & { state?: 'ON' | 'OFF' };
         this.lockType = stateInfo.id.split(LOCK_PREFIX).pop() as GarageLockType;
-        if(['UNLOCKED', 'LOCKED'].includes(buttonEvent.state.toUpperCase())){
-          this.setLockState(buttonEvent.state.toUpperCase() === 'LOCKED');
+        if(['UNLOCKED', 'LOCKED'].includes(buttonEvent.state?.toUpperCase() || '')){
+          this.setLockState(buttonEvent.state?.toUpperCase() === 'LOCKED');
         }
       } else if (['text_sensor-esphome_version', 'text_sensor-firmware_version'].includes(stateInfo.id)) {
         const b = stateInfo as BlaQTextSensorEvent;

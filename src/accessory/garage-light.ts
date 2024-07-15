@@ -131,10 +131,10 @@ export class BlaQGarageLightAccessory implements BaseBlaQAccessory {
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
       if (['light-garage_light', 'light-light'].includes(stateInfo.id)) {
-        const buttonEvent = stateInfo as BlaQButtonEvent & { state: 'ON' | 'OFF' };
+        const buttonEvent = stateInfo as BlaQButtonEvent & { state?: 'ON' | 'OFF' };
         this.lightType = stateInfo.id.split(LIGHT_PREFIX).pop() as GarageLightType;
-        if(['OFF', 'ON'].includes(buttonEvent.state.toUpperCase())){
-          this.setPowerState(buttonEvent.state.toUpperCase() === 'ON');
+        if(['OFF', 'ON'].includes(buttonEvent.state?.toUpperCase() || '')){
+          this.setPowerState(buttonEvent.state?.toUpperCase() === 'ON');
         }
       } else if (['text_sensor-esphome_version', 'text_sensor-firmware_version'].includes(stateInfo.id)) {
         const b = stateInfo as BlaQTextSensorEvent;

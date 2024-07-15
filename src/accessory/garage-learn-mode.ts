@@ -127,9 +127,9 @@ export class BlaQGarageLearnModeAccessory implements BaseBlaQAccessory {
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
       if (['switch-learn'].includes(stateInfo.id)) {
-        const buttonEvent = stateInfo as BlaQButtonEvent & { state: 'ON' | 'OFF' };
-        if(['OFF', 'ON'].includes(buttonEvent.state.toUpperCase())){
-          this.setIsOn(buttonEvent.state.toUpperCase() === 'ON');
+        const buttonEvent = stateInfo as BlaQButtonEvent & { state?: 'ON' | 'OFF' };
+        if(['OFF', 'ON'].includes(buttonEvent.state?.toUpperCase() || '')){
+          this.setIsOn(buttonEvent.state?.toUpperCase() === 'ON');
         }
       } else if (['text_sensor-esphome_version', 'text_sensor-firmware_version'].includes(stateInfo.id)) {
         const b = stateInfo as BlaQTextSensorEvent;
