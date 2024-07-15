@@ -67,7 +67,7 @@ export class BlaQHomebridgePluginPlatform implements DynamicPlatformPlugin {
   possiblyRegisterNewDevice(device: ConfigDevice){
     const deviceKey = this.getDeviceKey(device);
     if(!this.hubs[deviceKey]) {
-      this.hubs[deviceKey] = new BlaQHub(device, this.registerDiscoveredDevice.bind(this), this.logger);
+      this.hubs[deviceKey] = new BlaQHub(this.config, device, this.registerDiscoveredDevice.bind(this), this.logger);
       this.hubAccessories[deviceKey] = [];
     }else{
       const existingDiscoverer = this.hubs[deviceKey];

@@ -52,6 +52,36 @@
             }
           }
         }
+      },
+      "enableSeparateObstructionSensor": {
+        "title": "Enable publishing a separate \"occupancy\" obstruction sensor for the garage",
+        "type": "boolean",
+        "default": true
+      },
+      "enableMotionSensor": {
+        "title": "Enable publishing a motion sensor",
+        "type": "boolean",
+        "default": true
+      },
+      "enablePreCloseWarning": {
+        "title": "Publish an \"outlet\" accessory to trigger the ple-close warning",
+        "type": "boolean",
+        "default": true
+      },
+      "enableLockRemotes": {
+        "title": "Enable lock control over the remotes",
+        "type": "boolean",
+        "default": true
+      },
+      "enableLight": {
+        "title": "Enable controlling the garage light",
+        "type": "boolean",
+        "default": true
+      },
+      "enableLearnMode": {
+        "title": "Enable controlling the garage learn/pairing mode",
+        "type": "boolean",
+        "default": true
       }
     }
   }

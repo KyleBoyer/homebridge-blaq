@@ -1,5 +1,5 @@
 import { AutoReconnectingEventSource, LogMessageEvent, PingMessageEvent, StateUpdateMessageEvent } from './utils/eventsource.js';
-import { Logger, PlatformAccessory } from 'homebridge';
+import { Logger, PlatformAccessory, PlatformConfig } from 'homebridge';
 import { ConfigDevice } from './types.js';
 import { BaseBlaQAccessory } from './accessory/base.js';
 import { BlaQHomebridgePluginPlatform } from './platform.js';
@@ -38,7 +38,12 @@ export class BlaQHub {
   private initialized = false;
   private accessories: BaseBlaQAccessory[] = [];
 
-  constructor(private readonly configDevice: ConfigDevice, initAccessoryCallback: BlaQInitAccessoryCallback, logger: Logger) {
+  constructor(
+    private readonly pluginConfig: PlatformConfig,
+    private readonly configDevice: ConfigDevice,
+    initAccessoryCallback: BlaQInitAccessoryCallback,
+    logger: Logger,
+  ) {
     logger.debug('Initializing BlaQHub...');
     this.host = configDevice.host;
     this.port = configDevice.port;
@@ -185,12 +190,24 @@ export class BlaQHub {
 
   private initAccessories({ model, serialNumber }: ModelAndSerialNumber){
     this.initGarageDoorAccessory({ model, serialNumber });
-    this.initGarageLightAccessory({ model, serialNumber });
-    this.initGarageLockAccessory({ model, serialNumber });
-    this.initGarageMotionSensorAccessory({ model, serialNumber });
-    this.initGaragePreCloseWarningAccessory({ model, serialNumber });
-    this.initGarageLearnModeAccessory({ model, serialNumber });
-    this.initGarageObstructionSensorAccessory({ model, serialNumber });
+    if(this.pluginConfig.enableLight) {
+      this.initGarageLightAccessory({ model, serialNumber });
+    }
+    if(this.pluginConfig.enableLockRemotes){
+      this.initGarageLockAccessory({ model, serialNumber });
+    }
+    if(this.pluginConfig.enableMotionSensor){
+      this.initGarageMotionSensorAccessory({ model, serialNumber });
+    }
+    if(this.pluginConfig.enablePreCloseWarning){
+      this.initGaragePreCloseWarningAccessory({ model, serialNumber });
+    }
+    if(this.pluginConfig.enableLearnMode){
+      this.initGarageLearnModeAccessory({ model, serialNumber });
+    }
+    if(this.pluginConfig.enableSeparateObstructionSensor){
+      this.initGarageObstructionSensorAccessory({ model, serialNumber });
+    }
   }
 
   private handlePingUpdate(msg: PingMessageEvent){
