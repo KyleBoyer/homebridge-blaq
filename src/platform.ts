@@ -18,6 +18,7 @@ export class BlaQHomebridgePluginPlatform implements DynamicPlatformPlugin {
   public readonly accessories: PlatformAccessory[] = [];
 
   private hubs: Record<string, BlaQHub> = {};
+  private hubAccessories: Record<string, PlatformAccessory[]> = {};
   private bonjourInstance: Bonjour.Bonjour;
 
   constructor(
@@ -67,6 +68,7 @@ export class BlaQHomebridgePluginPlatform implements DynamicPlatformPlugin {
     const deviceKey = this.getDeviceKey(device);
     if(!this.hubs[deviceKey]) {
       this.hubs[deviceKey] = new BlaQHub(device, this.registerDiscoveredDevice.bind(this), this.logger);
+      this.hubAccessories[deviceKey] = [];
     }else{
       const existingDiscoverer = this.hubs[deviceKey];
       existingDiscoverer.updateHostPort(device.host, device.port);
@@ -123,16 +125,18 @@ export class BlaQHomebridgePluginPlatform implements DynamicPlatformPlugin {
     // see if an accessory with the same uuid has already been registered and restored from
     // the cached devices we stored in the `configureAccessory` method above
     const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
+    const configDeviceKey = this.getDeviceKey(configDevice);
     if (existingAccessory) {
       this.logger.info('Restoring existing accessory from cache:', existingAccessory.displayName);
       existingAccessory.context.device = configDevice;
-      this.api.updatePlatformAccessories([existingAccessory]);
+      this.api.updatePlatformAccessories(this.hubAccessories[configDeviceKey] || [existingAccessory]);
       return { platform: this, accessory: existingAccessory };
     } else {
       this.logger.info(`Adding new accessory: ${model} #${serialnumber}`);
       const accessory = new this.api.platformAccessory(configDevice.displayName, uuid);
       accessory.context.device = configDevice;
-      this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+      this.hubAccessories[this.getDeviceKey(configDevice)].push(accessory);
+      this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, this.hubAccessories[configDeviceKey]);
       return { platform: this, accessory };
     }
   }

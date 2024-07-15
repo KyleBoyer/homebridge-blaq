@@ -4,7 +4,6 @@ import fetch from 'node-fetch'; // I am, in fact, trying to make fetch happen.
 import { BlaQHomebridgePluginPlatform } from '../platform.js';
 import {
   BlaQBinarySensorEvent,
-  BlaQButtonEvent,
   BlaQCoverDoorEvent,
   BlaQLockEvent,
   BlaQTextSensorEvent,
@@ -17,7 +16,6 @@ import { LogMessageEvent, StateUpdateMessageEvent, StateUpdateRecord } from '../
 import { BaseBlaQAccessory } from './base.js';
 
 const BINARY_SENSOR_PREFIX = 'binary_sensor-';
-const BUTTON_PREFIX = 'button-';
 const COVER_PREFIX = 'cover-';
 
 const correctAPIBaseURL = (inputURL: string) => {
@@ -274,7 +272,6 @@ export class BlaQGarageDoorAccessory implements BaseBlaQAccessory {
   }
 
   handleStateEvent(stateEvent: StateUpdateMessageEvent){
-    this.logger.debug('Processing state event:', stateEvent.data);
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
       if (['cover-garage_door', 'cover-door'].includes(stateInfo.id)) {
@@ -288,23 +285,10 @@ export class BlaQGarageDoorAccessory implements BaseBlaQAccessory {
         const short_id = binarySensorEvent.id.split(BINARY_SENSOR_PREFIX).pop();
         if (short_id === 'obstruction') {
           this.setObstructed(binarySensorEvent.value);
-        } else if (short_id?.startsWith('dry_contact_')) {
-          this.logger.info(
-            `Sensor "${binarySensorEvent.name}" [${short_id}] reports ${binarySensorEvent.state} [${binarySensorEvent.value}].`,
-          );
-        } else {
-          this.logger.info(
-            `Sensor "${binarySensorEvent.name}" [${short_id}] reports ${binarySensorEvent.state} [${binarySensorEvent.value}].`,
-          );
         }
-      } else if (stateInfo.id.startsWith(BUTTON_PREFIX)) {
-        const buttonEvent = stateInfo as BlaQButtonEvent;
-        const short_id = buttonEvent.id.split(BUTTON_PREFIX).pop();
-        this.logger.info(`Button "${buttonEvent.name}" [${short_id}] reports that it exists.`);
       } else if (['text_sensor-esphome_version', 'text_sensor-firmware_version'].includes(stateInfo.id)) {
         const b = stateInfo as BlaQTextSensorEvent;
         if (b.value === b.state && b.value !== '' && b.value !== null && b.value !== undefined) {
-          this.logger.info('Firmware version:', b.value);
           this.setFirmwareVersion(b.value);
         } else {
           this.logger.error('Mismatched firmware versions in value/state:', b.value, b.state);
@@ -320,10 +304,6 @@ export class BlaQGarageDoorAccessory implements BaseBlaQAccessory {
         };
         const selectedLockState = lockStateMap[b.state] || 'UNKNOWN';
         this.setLockState(selectedLockState);
-      } else {
-        this.logger.info('Discarding uninteresting state event:', stateInfo.id);
-        this.logger.debug('Full message:', stateInfo);
-        return;
       }
     } catch(e) {
       this.logger.error('Cannot deserialize message:', stateEvent);
@@ -332,7 +312,6 @@ export class BlaQGarageDoorAccessory implements BaseBlaQAccessory {
   }
 
   handleLogEvent(logEvent: LogMessageEvent){
-    this.logger.debug('BlaQ log:', logEvent.data);
     try {
       const logStr = logEvent.data;
       const lowercaseLogStr = logStr.toLowerCase();

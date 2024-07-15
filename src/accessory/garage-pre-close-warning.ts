@@ -122,7 +122,6 @@ export class BlaQGaragePreCloseWarningAccessory implements BaseBlaQAccessory {
   }
 
   handleStateEvent(stateEvent: StateUpdateMessageEvent){
-    this.logger.debug('Processing state event:', stateEvent.data);
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
       if (['button-pre-close_warning'].includes(stateInfo.id)) {
@@ -133,7 +132,6 @@ export class BlaQGaragePreCloseWarningAccessory implements BaseBlaQAccessory {
       } else if (['text_sensor-esphome_version', 'text_sensor-firmware_version'].includes(stateInfo.id)) {
         const b = stateInfo as BlaQTextSensorEvent;
         if (b.value === b.state && b.value !== '' && b.value !== null && b.value !== undefined) {
-          this.logger.info('Firmware version:', b.value);
           this.setFirmwareVersion(b.value);
         } else {
           this.logger.error('Mismatched firmware versions in value/state:', b.value, b.state);
@@ -147,7 +145,6 @@ export class BlaQGaragePreCloseWarningAccessory implements BaseBlaQAccessory {
   }
 
   handleLogEvent(logEvent: LogMessageEvent){
-    this.logger.debug('BlaQ log:', logEvent.data);
     try {
       const logStr = logEvent.data;
       const lowercaseLogStr = logStr.toLowerCase();

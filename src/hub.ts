@@ -77,6 +77,7 @@ export class BlaQHub {
   }
 
   private handleStateUpdate(msg: StateUpdateMessageEvent){
+    this.logger.debug('Processing state event:', msg.data);
     this.accessories.forEach(accessory => {
       if(accessory.handleStateEvent){
         accessory.handleStateEvent(msg);
@@ -85,6 +86,7 @@ export class BlaQHub {
   }
 
   private handleLogUpdate(msg: LogMessageEvent){
+    this.logger.debug('BlaQ log:', msg.data);
     this.accessories.forEach(accessory => {
       if(accessory.handleLogEvent){
         accessory.handleLogEvent(msg);
@@ -104,13 +106,12 @@ export class BlaQHub {
   }
 
   private initGarageLightAccessory({ model, serialNumber }: ModelAndSerialNumber){
-    const accessorySuffix = 'light';
-    const nonMainAccessoryMACAddress = this.configDevice.mac && `${this.configDevice.mac}-${accessorySuffix}`;
-    const nonMainAccessorySerialNumber = `${serialNumber}-${accessorySuffix}`;
+    const baseDisplayName = this.configDevice.displayName || 'Garage Door';
+    const displayName = `${baseDisplayName} Light`;
     const {platform, accessory} = this.initAccessoryCallback(
-      { ...this.configDevice, mac: nonMainAccessoryMACAddress },
+      { ...this.configDevice, displayName },
       model,
-      nonMainAccessorySerialNumber,
+      serialNumber,
     );
     this.accessories.push(new BlaQGarageLightAccessory({
       platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
@@ -118,13 +119,12 @@ export class BlaQHub {
   }
 
   private initGarageLockAccessory({ model, serialNumber }: ModelAndSerialNumber){
-    const accessorySuffix = 'lock';
-    const nonMainAccessoryMACAddress = this.configDevice.mac && `${this.configDevice.mac}-${accessorySuffix}`;
-    const nonMainAccessorySerialNumber = `${serialNumber}-${accessorySuffix}`;
+    const baseDisplayName = this.configDevice.displayName || 'Garage Door';
+    const displayName = `${baseDisplayName} Remote Lock`;
     const {platform, accessory} = this.initAccessoryCallback(
-      { ...this.configDevice, mac: nonMainAccessoryMACAddress },
+      { ...this.configDevice, displayName },
       model,
-      nonMainAccessorySerialNumber,
+      serialNumber,
     );
     this.accessories.push(new BlaQGarageLockAccessory({
       platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
@@ -132,13 +132,12 @@ export class BlaQHub {
   }
 
   private initGarageMotionSensorAccessory({ model, serialNumber }: ModelAndSerialNumber){
-    const accessorySuffix = 'motion-sensor';
-    const nonMainAccessoryMACAddress = this.configDevice.mac && `${this.configDevice.mac}-${accessorySuffix}`;
-    const nonMainAccessorySerialNumber = `${serialNumber}-${accessorySuffix}`;
+    const baseDisplayName = this.configDevice.displayName || 'Garage Door';
+    const displayName = `${baseDisplayName} Motion Sensor`;
     const {platform, accessory} = this.initAccessoryCallback(
-      { ...this.configDevice, mac: nonMainAccessoryMACAddress },
+      { ...this.configDevice, displayName },
       model,
-      nonMainAccessorySerialNumber,
+      serialNumber,
     );
     this.accessories.push(new BlaQGarageMotionSensorAccessory({
       platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
@@ -146,13 +145,12 @@ export class BlaQHub {
   }
 
   private initGaragePreCloseWarningAccessory({ model, serialNumber }: ModelAndSerialNumber){
-    const accessorySuffix = 'pre-close-warning';
-    const nonMainAccessoryMACAddress = this.configDevice.mac && `${this.configDevice.mac}-${accessorySuffix}`;
-    const nonMainAccessorySerialNumber = `${serialNumber}-${accessorySuffix}`;
+    const baseDisplayName = this.configDevice.displayName || 'Garage Door';
+    const displayName = `${baseDisplayName} Pre Close Warning`;
     const {platform, accessory} = this.initAccessoryCallback(
-      { ...this.configDevice, mac: nonMainAccessoryMACAddress },
+      { ...this.configDevice, displayName },
       model,
-      nonMainAccessorySerialNumber,
+      serialNumber,
     );
     this.accessories.push(new BlaQGaragePreCloseWarningAccessory({
       platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
@@ -160,13 +158,12 @@ export class BlaQHub {
   }
 
   private initGarageLearnModeAccessory({ model, serialNumber }: ModelAndSerialNumber){
-    const accessorySuffix = 'learn-mode';
-    const nonMainAccessoryMACAddress = this.configDevice.mac && `${this.configDevice.mac}-${accessorySuffix}`;
-    const nonMainAccessorySerialNumber = `${serialNumber}-${accessorySuffix}`;
+    const baseDisplayName = this.configDevice.displayName || 'Garage Door';
+    const displayName = `${baseDisplayName} Learn/Pair Mode`;
     const {platform, accessory} = this.initAccessoryCallback(
-      { ...this.configDevice, mac: nonMainAccessoryMACAddress },
+      { ...this.configDevice, displayName },
       model,
-      nonMainAccessorySerialNumber,
+      serialNumber,
     );
     this.accessories.push(new BlaQGarageLearnModeAccessory({
       platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
@@ -174,13 +171,12 @@ export class BlaQHub {
   }
 
   private initGarageObstructionSensorAccessory({ model, serialNumber }: ModelAndSerialNumber){
-    const accessorySuffix = 'obstruction-sensor';
-    const nonMainAccessoryMACAddress = this.configDevice.mac && `${this.configDevice.mac}-${accessorySuffix}`;
-    const nonMainAccessorySerialNumber = `${serialNumber}-${accessorySuffix}`;
+    const baseDisplayName = this.configDevice.displayName || 'Garage Door';
+    const displayName = `${baseDisplayName} Obstruction Sensor`;
     const {platform, accessory} = this.initAccessoryCallback(
-      { ...this.configDevice, mac: nonMainAccessoryMACAddress },
+      { ...this.configDevice, displayName },
       model,
-      nonMainAccessorySerialNumber,
+      serialNumber,
     );
     this.accessories.push(new BlaQGarageObstructionSensorAccessory({
       platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
