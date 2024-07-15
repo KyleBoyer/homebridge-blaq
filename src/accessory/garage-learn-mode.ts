@@ -28,6 +28,8 @@ type BlaQGarageLearnModeAccessoryConstructorParams = {
     apiBaseURL: string;
 };
 
+export const label = 'Learn/Pair Mode';
+
 /**
  * Platform Accessory
  * An instance of this class is created for each accessory your platform registers
@@ -73,7 +75,7 @@ export class BlaQGarageLearnModeAccessory implements BaseBlaQAccessory {
 
     // Set the service name.  This is what is displayed as the name on the Home
     // app.  We use what we stored in `accessory.context` in  `discoverDevices`.
-    this.switchService.setCharacteristic(this.platform.characteristic.Name, accessory.context.device.displayName);
+    this.switchService.setCharacteristic(this.platform.characteristic.Name, accessory.context.device.displayName + ' ' + label);
 
     this.switchService.getCharacteristic(this.platform.characteristic.On)
       .onGet(this.getIsOn.bind(this))

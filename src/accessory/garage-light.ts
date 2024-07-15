@@ -31,6 +31,8 @@ type BlaQGarageLightAccessoryConstructorParams = {
     apiBaseURL: string;
 };
 
+export const label = 'Light';
+
 /**
  * Platform Accessory
  * An instance of this class is created for each accessory your platform registers
@@ -77,7 +79,7 @@ export class BlaQGarageLightAccessory implements BaseBlaQAccessory {
 
     // Set the service name.  This is what is displayed as the name on the Home
     // app.  We use what we stored in `accessory.context` in  `discoverDevices`.
-    this.lightbulbService.setCharacteristic(this.platform.characteristic.Name, accessory.context.device.displayName);
+    this.lightbulbService.setCharacteristic(this.platform.characteristic.Name, accessory.context.device.displayName + ' ' + label);
 
     this.lightbulbService.getCharacteristic(this.platform.characteristic.On)
       .onGet(this.getPowerState.bind(this))

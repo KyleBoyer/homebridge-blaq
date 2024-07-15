@@ -31,6 +31,8 @@ type BlaQGarageLockAccessoryConstructorParams = {
     apiBaseURL: string;
 };
 
+export const label = 'Lock Remotes';
+
 /**
  * Platform Accessory
  * An instance of this class is created for each accessory your platform registers
@@ -77,7 +79,7 @@ export class BlaQGarageLockAccessory implements BaseBlaQAccessory {
 
     // Set the service name.  This is what is displayed as the name on the Home
     // app.  We use what we stored in `accessory.context` in  `discoverDevices`.
-    this.lockService.setCharacteristic(this.platform.characteristic.Name, accessory.context.device.displayName);
+    this.lockService.setCharacteristic(this.platform.characteristic.Name, accessory.context.device.displayName + ' ' + label);
 
     this.lockService.getCharacteristic(this.platform.characteristic.LockCurrentState)
       .onGet(this.getLockState.bind(this));

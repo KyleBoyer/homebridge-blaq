@@ -27,6 +27,8 @@ type BlaQGarageObstructionSensorAccessoryConstructorParams = {
     apiBaseURL: string;
 };
 
+export const label = 'Obstruction Sensor';
+
 /**
  * Platform Accessory
  * An instance of this class is created for each accessory your platform registers
@@ -72,7 +74,7 @@ export class BlaQGarageObstructionSensorAccessory implements BaseBlaQAccessory {
 
     // Set the service name.  This is what is displayed as the name on the Home
     // app.  We use what we stored in `accessory.context` in  `discoverDevices`.
-    this.occupancySensorService.setCharacteristic(this.platform.characteristic.Name, accessory.context.device.displayName);
+    this.occupancySensorService.setCharacteristic(this.platform.characteristic.Name, accessory.context.device.displayName + ' ' + label);
 
     this.occupancySensorService.getCharacteristic(this.platform.characteristic.OccupancyDetected)
       .onGet(this.getObstructionDetected.bind(this));

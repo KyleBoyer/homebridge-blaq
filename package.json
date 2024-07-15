@@ -2,7 +2,7 @@
   "private": false,
   "displayName": "Konnected BlaQ",
   "name": "homebridge-blaq",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "description": "Control and view your garage door(s) remotely with real-time updates using Konnected's BlaQ hardware",
   "license": "Apache-2.0",
   "type": "module",

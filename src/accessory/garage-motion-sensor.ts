@@ -27,6 +27,8 @@ type BlaQGarageMotionSensorAccessoryConstructorParams = {
     apiBaseURL: string;
 };
 
+export const label = 'Motion Sensor';
+
 /**
  * Platform Accessory
  * An instance of this class is created for each accessory your platform registers
@@ -72,7 +74,7 @@ export class BlaQGarageMotionSensorAccessory implements BaseBlaQAccessory {
 
     // Set the service name.  This is what is displayed as the name on the Home
     // app.  We use what we stored in `accessory.context` in  `discoverDevices`.
-    this.motionSensorService.setCharacteristic(this.platform.characteristic.Name, accessory.context.device.displayName);
+    this.motionSensorService.setCharacteristic(this.platform.characteristic.Name, accessory.context.device.displayName + ' ' + label);
 
     this.motionSensorService.getCharacteristic(this.platform.characteristic.MotionDetected)
       .onGet(this.getMotionDetected.bind(this));
