@@ -9,6 +9,7 @@ import {
   BlaQTextSensorEvent,
   CurrentOperationType,
   GarageCoverType,
+  GarageLockType,
   LockStateType,
   OpenClosedStateType,
 } from '../types.js';
@@ -17,6 +18,7 @@ import { BaseBlaQAccessory } from './base.js';
 
 const BINARY_SENSOR_PREFIX = 'binary_sensor-';
 const COVER_PREFIX = 'cover-';
+const LOCK_PREFIX = 'lock-';
 
 const correctAPIBaseURL = (inputURL: string) => {
   let correctedAPIBaseURL = inputURL;
@@ -52,6 +54,7 @@ export class BlaQGarageDoorAccessory implements BaseBlaQAccessory {
   private obstructed?: boolean;
   private firmwareVersion?: string;
   private lockState: LockStateType = 'UNKNOWN';
+  private lockType?: GarageLockType = 'lock';
   private coverType?: GarageCoverType = 'garage_door';
   private preClosing?: boolean;
   private apiBaseURL: string;
@@ -110,6 +113,9 @@ export class BlaQGarageDoorAccessory implements BaseBlaQAccessory {
     this.garageDoorService.getCharacteristic(this.platform.characteristic.LockCurrentState)
       .onGet(this.getLockState.bind(this));
 
+    this.garageDoorService.getCharacteristic(this.platform.characteristic.LockTargetState)
+      .onSet(this.updateLockState.bind(this));
+
     // Publish firmware version; this may not be initialized yet, so we set a getter.
     // Note that this is against the AccessoryInformation service, not the GDO service.
     this.accessoryInformationService
@@ -128,6 +134,15 @@ export class BlaQGarageDoorAccessory implements BaseBlaQAccessory {
       this.platform.characteristic.FirmwareRevision,
       version,
     );
+  }
+
+  private async updateLockState(lockState: CharacteristicValue){
+    const lockDesired = lockState === this.platform.characteristic.LockTargetState.SECURED;
+    const apiTarget: string = lockDesired ? 'lock' : 'unlock';
+    const currentlyLocked = this.getLockState() === this.platform.characteristic.LockCurrentState.SECURED;
+    if(lockDesired !== currentlyLocked){
+      await fetch(`${this.apiBaseURL}/lock/${this.lockType}/${apiTarget}`, {method: 'POST'});
+    }
   }
 
   getLockState(): CharacteristicValue {
@@ -295,6 +310,7 @@ export class BlaQGarageDoorAccessory implements BaseBlaQAccessory {
           this.firmwareVersion = undefined;
         }
       } else if (['lock-lock', 'lock-lock_remotes'].includes(stateInfo.id)) {
+        this.lockType = stateInfo.id.split(LOCK_PREFIX).pop() as GarageLockType;
         const b = stateInfo as BlaQLockEvent;
         const lockStateMap: Record<string, LockStateType> = {
           'LOCKED': 'SECURED',
