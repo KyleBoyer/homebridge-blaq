@@ -240,10 +240,10 @@ export class BlaQGarageDoorAccessory implements BaseBlaQAccessory {
   }
 
   getTargetDoorState(): CharacteristicValue {
-    if(this.currentOperation === 'OPENING' || (this.targetPosition !== undefined && this.targetPosition > 0)){
-      return this.platform.characteristic.TargetDoorState.OPEN;
-    } else if(this.currentOperation === 'CLOSING' || this.preClosing || (this.targetPosition !== undefined && this.targetPosition <= 0)){
+    if(this.currentOperation === 'CLOSING' || this.preClosing || (this.targetPosition !== undefined && this.targetPosition <= 0)){
       return this.platform.characteristic.TargetDoorState.CLOSED;
+    } else if(this.currentOperation === 'OPENING' || (this.targetPosition !== undefined && this.targetPosition > 0)){
+      return this.platform.characteristic.TargetDoorState.OPEN;
     } else if(this.currentOperation === 'IDLE'){
       if(this.state === 'CLOSED'){
         return this.platform.characteristic.TargetDoorState.CLOSED;
@@ -406,7 +406,7 @@ export class BlaQGarageDoorAccessory implements BaseBlaQAccessory {
         this.setPreClosing(true);
         setTimeout(() => {
           this.setPreClosing(false);
-        }, warningDuration);
+        }, warningDuration + 100); // add 100ms for closing state to happen right after
       }
     } catch(e) {
       this.logger.error('Log parsing error:', e);
