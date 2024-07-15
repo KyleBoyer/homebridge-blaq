@@ -49,7 +49,8 @@ export class BlaQGarageDoorAccessory implements BaseBlaQAccessory {
   private accessoryInformationService: Service;
   private garageDoorService: Service;
   private state?: OpenClosedStateType;
-  private position?: number; // fraction open/closed; might not always be accurate
+  private position?: number; // percentage open(100)/closed(0); might not always be accurate
+  private targetPosition?: number; // percentage open(100)/closed(0); might not always be accurate
   private currentOperation?: CurrentOperationType;
   private obstructed?: boolean;
   private firmwareVersion?: string;
@@ -171,13 +172,17 @@ export class BlaQGarageDoorAccessory implements BaseBlaQAccessory {
   }
 
   getCurrentDoorState(): CharacteristicValue {
-    if(this.preClosing || this.currentOperation === 'CLOSING'){
+    if(this.preClosing || this.currentOperation === 'CLOSING' || (
+      this.position !== undefined && this.targetPosition !== undefined && this.targetPosition < this.position
+    )){
       return this.platform.characteristic.CurrentDoorState.CLOSING;
-    } else if(this.currentOperation === 'OPENING'){
+    } else if(this.currentOperation === 'OPENING' || (
+      this.position !== undefined && this.targetPosition !== undefined && this.targetPosition > this.position
+    )){
       return this.platform.characteristic.CurrentDoorState.OPENING;
-    } else if (this.state === 'OPEN') {
+    } else if (this.state === 'OPEN' || (this.position !== undefined && this.position > 0)) {
       return this.platform.characteristic.CurrentDoorState.OPEN;
-    } else if (this.state === 'CLOSED') {
+    } else if (this.state === 'CLOSED' || (this.position !== undefined && this.position <= 0)) {
       return this.platform.characteristic.CurrentDoorState.CLOSED;
     }
     throw new Error('Invalid door state!');
@@ -192,6 +197,18 @@ export class BlaQGarageDoorAccessory implements BaseBlaQAccessory {
     this.garageDoorService.setCharacteristic(
       this.platform.characteristic.CurrentDoorState,
       this.getCurrentDoorState(),
+    );
+    this.garageDoorService.setCharacteristic(
+      this.platform.characteristic.TargetDoorState,
+      this.getTargetDoorState(),
+    );
+    this.garageDoorService.setCharacteristic(
+      this.platform.characteristic.CurrentPosition,
+      this.getCurrentPosition(),
+    );
+    this.garageDoorService.setCharacteristic(
+      this.platform.characteristic.TargetPosition,
+      this.getTargetDoorPosition(),
     );
   }
 
@@ -209,24 +226,21 @@ export class BlaQGarageDoorAccessory implements BaseBlaQAccessory {
     if(this.position){
       return this.position;
     } else if (this.state === 'OPEN') {
-      return 1;
+      return 100;
     } else if (this.state === 'CLOSED') {
       return 0;
     } else {
-      return 0.5; // unknown state
+      return 50; // unknown state
     }
   }
 
   private setCurrentPosition(position: number) {
     this.position = position;
-    this.garageDoorService.setCharacteristic(
-      this.platform.characteristic.CurrentPosition,
-      this.getCurrentPosition(),
-    );
+    this.updateCurrentDoorState();
   }
 
   getTargetDoorState(): CharacteristicValue {
-    if(this.currentOperation === 'OPENING'){
+    if(this.currentOperation === 'OPENING' || (this.targetPosition && this.targetPosition > 0)){
       return this.platform.characteristic.TargetDoorState.OPEN;
     } else if(this.currentOperation === 'CLOSING' || this.preClosing){
       return this.platform.characteristic.TargetDoorState.CLOSED;
@@ -244,24 +258,29 @@ export class BlaQGarageDoorAccessory implements BaseBlaQAccessory {
     let apiTarget: string;
     if (target === this.platform.characteristic.TargetDoorState.CLOSED) {
       apiTarget = 'close';
+      this.targetPosition = 0;
     } else if (target === this.platform.characteristic.TargetDoorState.OPEN) {
+      this.targetPosition = 100;
       apiTarget = 'open';
     } else {
       throw new Error('Invalid target door state!');
     }
+    this.updateCurrentDoorState();
     await fetch(`${this.apiBaseURL}/cover/${this.coverType}/${apiTarget}`, {method: 'POST'});
   }
 
   getTargetDoorPosition(): CharacteristicValue {
-    if(this.currentOperation === 'OPENING'){
-      return 1;
+    if(this.targetPosition){
+      return this.targetPosition;
+    } else if(this.currentOperation === 'OPENING'){
+      return 100;
     } else if(this.currentOperation === 'CLOSING' || this.preClosing){
       return 0;
     } else if(this.currentOperation === 'IDLE'){
       if(this.state === 'CLOSED'){
         return 0;
       }else if(this.state === 'OPEN'){
-        return 1;
+        return 100;
       }
     }
     throw new Error('Invalid target door position!');
@@ -271,7 +290,15 @@ export class BlaQGarageDoorAccessory implements BaseBlaQAccessory {
     if(isNaN(+target)){
       throw new Error('Invalid target door position!');
     }
-    await fetch(`${this.apiBaseURL}/cover/${this.coverType}/set?position=${Math.round(+target * 100)}`, {method: 'POST'});
+    const roundedTarget = Math.round(+target);
+    this.targetPosition = roundedTarget;
+    if(this.position){
+      this.setCurrentOperation(roundedTarget < this.position ? 'CLOSING' : 'OPENING');
+    }
+    this.updateCurrentDoorState();
+    if(this.position !== roundedTarget){
+      await fetch(`${this.apiBaseURL}/cover/${this.coverType}/set?position=${roundedTarget}`, {method: 'POST'});
+    }
   }
 
   getObstructed(): CharacteristicValue {
@@ -301,7 +328,7 @@ export class BlaQGarageDoorAccessory implements BaseBlaQAccessory {
         this.coverType = stateInfo.id.split(COVER_PREFIX).pop() as GarageCoverType;
         this.setCurrentDoorState(doorEvent.state);
         this.setCurrentOperation(doorEvent.current_operation);
-        this.setCurrentPosition(doorEvent.position);
+        this.setCurrentPosition(Math.round(doorEvent.position * 100));
       } else if (stateInfo.id.startsWith(BINARY_SENSOR_PREFIX)) {
         const binarySensorEvent = stateInfo as BlaQBinarySensorEvent;
         const short_id = binarySensorEvent.id.split(BINARY_SENSOR_PREFIX).pop();
@@ -350,7 +377,7 @@ export class BlaQGarageDoorAccessory implements BaseBlaQAccessory {
       const positionMatch = lowercaseLogStr.match(/position[:=] ?([\d.]+%?)/g)?.shift();
       if(positionMatch){
         const positionNum = +positionMatch.replaceAll(/[^\d.]+/g, '');
-        const multiplier = (positionMatch.includes('%') || positionNum > 1) ? 1/100 : 1;
+        const multiplier = positionMatch.includes('%') ? 1 : 100;
         this.setCurrentPosition(positionNum * multiplier);
       }
       if (lowercaseLogStr.includes('warning for ')){

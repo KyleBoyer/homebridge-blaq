@@ -111,7 +111,7 @@ export class BlaQHub {
   }
 
   private initGarageLightAccessory({ platform, accessory, model, serialNumber}: InitAccessoryParams){
-    if(this.pluginConfig.enableLight) {
+    if(this.pluginConfig.enableLight ?? true) {
       this.accessories.push(new BlaQGarageLightAccessory({
         platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
       }));
@@ -119,7 +119,7 @@ export class BlaQHub {
   }
 
   private initGarageLockAccessory({ platform, accessory, model, serialNumber}: InitAccessoryParams){
-    if(this.pluginConfig.enableLockRemotes){
+    if(this.pluginConfig.enableLockRemotes ?? true){
       this.accessories.push(new BlaQGarageLockAccessory({
         platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
       }));
@@ -127,7 +127,7 @@ export class BlaQHub {
   }
 
   private initGarageMotionSensorAccessory({ platform, accessory, model, serialNumber}: InitAccessoryParams){
-    if(this.pluginConfig.enableMotionSensor){
+    if(this.pluginConfig.enableMotionSensor ?? true){
       this.accessories.push(new BlaQGarageMotionSensorAccessory({
         platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
       }));
@@ -135,7 +135,7 @@ export class BlaQHub {
   }
 
   private initGaragePreCloseWarningAccessory({ platform, accessory, model, serialNumber}: InitAccessoryParams){
-    if(this.pluginConfig.enablePreCloseWarning){
+    if(this.pluginConfig.enablePreCloseWarning ?? true){
       this.accessories.push(new BlaQGaragePreCloseWarningAccessory({
         platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
       }));
@@ -143,7 +143,7 @@ export class BlaQHub {
   }
 
   private initGarageLearnModeAccessory({ platform, accessory, model, serialNumber}: InitAccessoryParams){
-    if(this.pluginConfig.enableLearnMode){
+    if(this.pluginConfig.enableLearnMode ?? true){
       this.accessories.push(new BlaQGarageLearnModeAccessory({
         platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
       }));
@@ -151,7 +151,7 @@ export class BlaQHub {
   }
 
   private initGarageObstructionSensorAccessory({ platform, accessory, model, serialNumber}: InitAccessoryParams){
-    if(this.pluginConfig.enableSeparateObstructionSensor){
+    if(this.pluginConfig.enableSeparateObstructionSensor ?? true){
       this.accessories.push(new BlaQGarageObstructionSensorAccessory({
         platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
       }));
