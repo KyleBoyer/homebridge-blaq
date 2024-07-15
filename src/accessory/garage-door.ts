@@ -157,6 +157,13 @@ export class BlaQGarageDoorAccessory implements BaseBlaQAccessory {
 
   private setLockState(lockState: LockStateType) {
     this.lockState = lockState;
+    const currentlyLocked = this.getLockState() === this.platform.characteristic.LockCurrentState.SECURED;
+    this.garageDoorService.setCharacteristic(
+      this.platform.characteristic.LockTargetState,
+      currentlyLocked ?
+        this.platform.characteristic.LockTargetState.SECURED :
+        this.platform.characteristic.LockTargetState.UNSECURED,
+    );
     this.garageDoorService.setCharacteristic(
       this.platform.characteristic.LockCurrentState,
       this.getLockState(),
