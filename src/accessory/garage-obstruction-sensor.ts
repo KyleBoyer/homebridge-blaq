@@ -19,7 +19,7 @@ const correctAPIBaseURL = (inputURL: string) => {
   return correctedAPIBaseURL;
 };
 
-type BlaQGarageMotionSensorAccessoryConstructorParams = {
+type BlaQGarageObstructionSensorAccessoryConstructorParams = {
     platform: BlaQHomebridgePluginPlatform;
     accessory: PlatformAccessory;
     model: string;
@@ -32,13 +32,13 @@ type BlaQGarageMotionSensorAccessoryConstructorParams = {
  * An instance of this class is created for each accessory your platform registers
  * Each accessory may expose multiple services of different service types.
  */
-export class BlaQGarageMotionSensorAccessory implements BaseBlaQAccessory {
+export class BlaQGarageObstructionSensorAccessory implements BaseBlaQAccessory {
   private logger: Logger;
   private accessoryInformationService: Service;
-  private motionSensorService: Service;
+  private occupancySensorService: Service;
   private apiBaseURL: string;
   private firmwareVersion?: string;
-  private motionDetected?: boolean;
+  private obstructionDetected?: boolean;
   private readonly platform: BlaQHomebridgePluginPlatform;
   private readonly accessory: PlatformAccessory;
   private readonly model: string;
@@ -50,16 +50,16 @@ export class BlaQGarageMotionSensorAccessory implements BaseBlaQAccessory {
     model,
     serialNumber,
     apiBaseURL,
-  }: BlaQGarageMotionSensorAccessoryConstructorParams) {
+  }: BlaQGarageObstructionSensorAccessoryConstructorParams) {
     this.platform = platform;
     this.logger = this.platform.logger;
-    this.logger.debug('Initializing BlaQGarageMotionSensorAccessory...');
+    this.logger.debug('Initializing BlaQGarageObstructionSensorAccessory...');
     this.accessory = accessory;
     this.model = model;
     this.serialNumber = serialNumber;
     this.apiBaseURL = correctAPIBaseURL(apiBaseURL);
-    this.motionSensorService = this.accessory.getService(this.platform.service.MotionSensor)
-                  || this.accessory.addService(this.platform.service.MotionSensor);
+    this.occupancySensorService = this.accessory.getService(this.platform.service.OccupancySensor)
+                  || this.accessory.addService(this.platform.service.OccupancySensor);
 
     this.accessoryInformationService = this.accessory.getService(this.platform.service.AccessoryInformation)
                   || this.accessory.addService(this.platform.service.AccessoryInformation);
@@ -72,17 +72,17 @@ export class BlaQGarageMotionSensorAccessory implements BaseBlaQAccessory {
 
     // Set the service name.  This is what is displayed as the name on the Home
     // app.  We use what we stored in `accessory.context` in  `discoverDevices`.
-    this.motionSensorService.setCharacteristic(this.platform.characteristic.Name, accessory.context.device.displayName);
+    this.occupancySensorService.setCharacteristic(this.platform.characteristic.Name, accessory.context.device.displayName);
 
-    this.motionSensorService.getCharacteristic(this.platform.characteristic.MotionDetected)
-      .onGet(this.getMotionDetected.bind(this));
+    this.occupancySensorService.getCharacteristic(this.platform.characteristic.OccupancyDetected)
+      .onGet(this.getObstructionDetected.bind(this));
 
     // Publish firmware version; this may not be initialized yet, so we set a getter.
     // Note that this is against the AccessoryInformation service, not the GDO service.
     this.accessoryInformationService
       .getCharacteristic(this.platform.characteristic.FirmwareRevision)
       .onGet(this.getFirmwareVersion.bind(this));
-    this.logger.debug('Initialized BlaQGarageMotionSensorAccessory!');
+    this.logger.debug('Initialized BlaQGarageObstructionSensorAccessory!');
   }
 
   getFirmwareVersion(): CharacteristicValue {
@@ -97,15 +97,15 @@ export class BlaQGarageMotionSensorAccessory implements BaseBlaQAccessory {
     );
   }
 
-  getMotionDetected(): CharacteristicValue {
-    return this.motionDetected || false;
+  getObstructionDetected(): CharacteristicValue {
+    return this.obstructionDetected || false;
   }
 
-  setMotionDetected(motionDetected: boolean) {
-    this.motionDetected = motionDetected;
-    this.motionSensorService.setCharacteristic(
-      this.platform.characteristic.MotionDetected,
-      this.motionDetected,
+  setObstructionDetected(obstructionDetected: boolean) {
+    this.obstructionDetected = obstructionDetected;
+    this.occupancySensorService.setCharacteristic(
+      this.platform.characteristic.OccupancyDetected,
+      this.obstructionDetected,
     );
   }
 
@@ -117,10 +117,10 @@ export class BlaQGarageMotionSensorAccessory implements BaseBlaQAccessory {
     this.logger.debug('Processing state event:', stateEvent.data);
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
-      if (['binary_sensor-motion'].includes(stateInfo.id)) {
+      if (['binary_sensor-obstruction'].includes(stateInfo.id)) {
         const sensorEvent = stateInfo as BlaQBinarySensorEvent;
         if(['OFF', 'ON'].includes(sensorEvent.state.toUpperCase())){
-          this.setMotionDetected(sensorEvent.state.toUpperCase() === 'ON');
+          this.setObstructionDetected(sensorEvent.state.toUpperCase() === 'ON');
         }
       } else if (['text_sensor-esphome_version', 'text_sensor-firmware_version'].includes(stateInfo.id)) {
         const b = stateInfo as BlaQTextSensorEvent;
@@ -143,10 +143,18 @@ export class BlaQGarageMotionSensorAccessory implements BaseBlaQAccessory {
     try {
       const logStr = logEvent.data;
       const lowercaseLogStr = logStr.toLowerCase();
-      if (lowercaseLogStr.includes('motion') && lowercaseLogStr.includes('state') && lowercaseLogStr.includes('on')) {
-        this.setMotionDetected(true);
-      } else if (lowercaseLogStr.includes('motion') && lowercaseLogStr.includes('state') && lowercaseLogStr.includes('off')) {
-        this.setMotionDetected(false);
+      const obstructionStateOn =
+        lowercaseLogStr.includes('obstruction') && lowercaseLogStr.includes('state') && lowercaseLogStr.includes('on');
+      const obstructionStateOff =
+        lowercaseLogStr.includes('obstruction') && lowercaseLogStr.includes('state') && lowercaseLogStr.includes('off');
+      const obstructionObstructed =
+        lowercaseLogStr.includes('obstruction') && lowercaseLogStr.includes('obstructed');
+      const obstructionClear =
+        lowercaseLogStr.includes('obstruction') && lowercaseLogStr.includes('clear');
+      if (obstructionStateOn || obstructionObstructed) {
+        this.setObstructionDetected(true);
+      } else if (obstructionStateOff || obstructionClear) {
+        this.setObstructionDetected(false);
       }
     } catch(e) {
       this.logger.error('Log parsing error:', e);

@@ -22,7 +22,7 @@ This plugin enables the use of a GDO BlaQ device with Homebridge (and derivative
 * Firmware Version Status
 * Motion Sensor Status
 * Play Pre-close Warning
-* Obstruction Sensor Status (coming soon on v0.2.X)
+* Obstruction Sensor Status
 
 It *could*, but does not currently, support:
 
