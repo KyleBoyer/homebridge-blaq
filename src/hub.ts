@@ -90,7 +90,7 @@ export class BlaQHub {
   }
 
   private possiblyFinalizeInit(){
-    if(this.friendlyName && this.deviceMac){
+    if(!this.initialized && this.friendlyName && this.deviceMac){
       this.logger.info('[init] Publishing accessories with device model:', this.friendlyName);
       this.initAccessories({
         friendlyName: this.friendlyName,
@@ -98,6 +98,7 @@ export class BlaQHub {
       });
       this.logger.debug('[init] Accessories initialized!');
       this.initialized = true;
+      this.reinitializeEventSource();
     }
   }
 
