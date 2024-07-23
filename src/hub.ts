@@ -43,6 +43,11 @@ export class BlaQHub {
   private friendlyName?: string;
   private deviceMac?: string;
   private port: number;
+  private eventsBeforeAccessoryInit: {
+    type: 'state' | 'log' | 'ping';
+    event: StateUpdateMessageEvent | LogMessageEvent | PingMessageEvent;
+  }[] = [];
+
   private readonly initAccessoryCallback: BlaQInitAccessoryCallback;
   private readonly logger: Logger;
 
@@ -96,13 +101,29 @@ export class BlaQHub {
         friendlyName: this.friendlyName,
         serialNumber: this.deviceMac,
       });
-      this.logger.debug('[init] Accessories initialized!');
       this.initialized = true;
-      this.reinitializeEventSource();
+      this.eventsBeforeAccessoryInit.forEach(oldEvent => {
+        const getFuncToCall = {
+          'ping': (accessory: BaseBlaQAccessoryInterface) => accessory.handlePingEvent?.bind(accessory),
+          'log': (accessory: BaseBlaQAccessoryInterface) => accessory.handleLogEvent?.bind(accessory),
+          'state': (accessory: BaseBlaQAccessoryInterface) => accessory.handleStateEvent?.bind(accessory),
+        }[oldEvent.type];
+        this.accessories.forEach(accessory => {
+          const funcToCall = getFuncToCall(accessory);
+          if(funcToCall){
+            funcToCall(oldEvent.event);
+          }
+        });
+      });
+      this.eventsBeforeAccessoryInit = [];
+      this.logger.debug('[init] Accessories initialized!');
     }
   }
 
   private handleStateUpdate(msg: StateUpdateMessageEvent){
+    if(!this.initialized){
+      this.eventsBeforeAccessoryInit.push({ type: 'state', event: msg });
+    }
     if (!this.initialized && msg.data !== '' ) {
       try {
         const b = JSON.parse(msg.data) as BlaQTextSensorEvent;
@@ -125,6 +146,9 @@ export class BlaQHub {
   }
 
   private handleLogUpdate(msg: LogMessageEvent){
+    if(!this.initialized){
+      this.eventsBeforeAccessoryInit.push({ type: 'log', event: msg });
+    }
     this.logger.debug('BlaQ log:', msg.data);
     this.accessories.forEach(accessory => {
       if(accessory.handleLogEvent){
@@ -203,6 +227,9 @@ export class BlaQHub {
   }
 
   private handlePingUpdate(msg: PingMessageEvent){
+    if(!this.initialized){
+      this.eventsBeforeAccessoryInit.push({ type: 'ping', event: msg });
+    }
     if (!this.initialized && msg.data !== '' ) {
       try {
         const b = JSON.parse(msg.data) as BlaQPingEvent;
