@@ -91,7 +91,7 @@ export class BlaQHomebridgePluginPlatform implements DynamicPlatformPlugin {
           host: service.addresses?.[0] || service.host,
           port: service.port,
           displayName: service.txt?.friendly_name,
-          mac: service.txt?.mac?.toUpperCase()?.replaceAll(/[^A-F0-9]/g, '')?.match(/.{2}/g)?.join(':'),
+          mac: formatMAC(service.txt?.mac),
         };
         this.logger.debug(`Discovered device via mDNS: ${JSON.stringify(configEntry)}`);
         this.possiblyRegisterNewDevice(configEntry);

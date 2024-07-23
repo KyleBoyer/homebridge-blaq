@@ -1,7 +1,7 @@
 import { AutoReconnectingEventSource, LogMessageEvent, PingMessageEvent, StateUpdateMessageEvent } from './utils/eventsource.js';
 import { Logger, PlatformAccessory, PlatformConfig } from 'homebridge';
-import { ConfigDevice } from './types.js';
-import { BaseBlaQAccessory } from './accessory/base.js';
+import { BlaQTextSensorEvent, ConfigDevice } from './types.js';
+import { BaseBlaQAccessoryInterface } from './accessory/base.js';
 import { BlaQHomebridgePluginPlatform } from './platform.js';
 import { BlaQGarageDoorAccessory } from './accessory/garage-door.js';
 import { BlaQGarageLightAccessory } from './accessory/garage-light.js';
@@ -10,6 +10,7 @@ import { BlaQGarageMotionSensorAccessory } from './accessory/garage-motion-senso
 import { BlaQGaragePreCloseWarningAccessory } from './accessory/garage-pre-close-warning.js';
 import { BlaQGarageLearnModeAccessory } from './accessory/garage-learn-mode.js';
 import { BlaQGarageObstructionSensorAccessory } from './accessory/garage-obstruction-sensor.js';
+import { formatMAC } from './utils/formatters.js';
 
 interface BlaQPingEvent {
   title: string;
@@ -19,12 +20,12 @@ interface BlaQPingEvent {
   lang: string;
 }
 
-type ModelAndSerialNumber = {
-  model: string;
+type FriendlyNameAndSerialNumber = {
+  friendlyName: string;
   serialNumber: string;
 };
 
-type InitAccessoryParams = ModelAndSerialNumber & {
+type InitAccessoryParams = FriendlyNameAndSerialNumber & {
   platform: BlaQHomebridgePluginPlatform;
   accessory: PlatformAccessory;
 };
@@ -35,13 +36,15 @@ export type BlaQInitAccessoryCallback = (configDevice: ConfigDevice, Model: stri
 };
 
 export class BlaQHub {
-  private host: string;
-  private port: number;
-  private readonly logger: Logger;
+  private accessories: BaseBlaQAccessoryInterface[] = [];
   private eventSource?: AutoReconnectingEventSource;
-  private initAccessoryCallback: BlaQInitAccessoryCallback;
+  private host: string;
   private initialized = false;
-  private accessories: BaseBlaQAccessory[] = [];
+  private friendlyName?: string;
+  private deviceMac?: string;
+  private port: number;
+  private readonly initAccessoryCallback: BlaQInitAccessoryCallback;
+  private readonly logger: Logger;
 
   constructor(
     private readonly pluginConfig: PlatformConfig,
@@ -86,7 +89,32 @@ export class BlaQHub {
     }
   }
 
+  private possiblyFinalizeInit(){
+    if(this.friendlyName && this.deviceMac){
+      this.logger.info('[init] Publishing accessories with device model:', this.friendlyName);
+      this.initAccessories({
+        friendlyName: this.friendlyName,
+        serialNumber: this.deviceMac,
+      });
+      this.logger.debug('[init] Accessories initialized!');
+      this.initialized = true;
+    }
+  }
+
   private handleStateUpdate(msg: StateUpdateMessageEvent){
+    if (!this.initialized && msg.data !== '' ) {
+      try {
+        const b = JSON.parse(msg.data) as BlaQTextSensorEvent;
+        if(['text_sensor-device_id'].includes(b.id)){
+          this.deviceMac = formatMAC(b.value);
+        }
+        this.possiblyFinalizeInit();
+      } catch (e) {
+        this.logger.debug('[init] Got event:', msg);
+        this.logger.debug('[init] Got event data:', msg.data);
+        this.logger.error('[init] Cannot parse BlaQTextSensorEvent', e);
+      }
+    }
     this.logger.debug('Processing state event:', msg.data);
     this.accessories.forEach(accessory => {
       if(accessory.handleStateEvent){
@@ -104,90 +132,81 @@ export class BlaQHub {
     });
   }
 
-  private initGarageDoorAccessory({ platform, accessory, model, serialNumber}: InitAccessoryParams){
+  private initGarageDoorAccessory({ platform, accessory, friendlyName, serialNumber}: InitAccessoryParams){
     this.accessories.push(new BlaQGarageDoorAccessory({
-      platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
+      platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
     }));
   }
 
-  private initGarageLightAccessory({ platform, accessory, model, serialNumber}: InitAccessoryParams){
+  private initGarageLightAccessory({ platform, accessory, friendlyName, serialNumber}: InitAccessoryParams){
     if(this.pluginConfig.enableLight ?? true) {
       this.accessories.push(new BlaQGarageLightAccessory({
-        platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
+        platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
       }));
     }
   }
 
-  private initGarageLockAccessory({ platform, accessory, model, serialNumber}: InitAccessoryParams){
+  private initGarageLockAccessory({ platform, accessory, friendlyName, serialNumber}: InitAccessoryParams){
     if(this.pluginConfig.enableLockRemotes ?? true){
       this.accessories.push(new BlaQGarageLockAccessory({
-        platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
+        platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
       }));
     }
   }
 
-  private initGarageMotionSensorAccessory({ platform, accessory, model, serialNumber}: InitAccessoryParams){
+  private initGarageMotionSensorAccessory({ platform, accessory, friendlyName, serialNumber}: InitAccessoryParams){
     if(this.pluginConfig.enableMotionSensor ?? true){
       this.accessories.push(new BlaQGarageMotionSensorAccessory({
-        platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
+        platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
       }));
     }
   }
 
-  private initGaragePreCloseWarningAccessory({ platform, accessory, model, serialNumber}: InitAccessoryParams){
+  private initGaragePreCloseWarningAccessory({ platform, accessory, friendlyName, serialNumber}: InitAccessoryParams){
     if(this.pluginConfig.enablePreCloseWarning ?? true){
       this.accessories.push(new BlaQGaragePreCloseWarningAccessory({
-        platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
+        platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
       }));
     }
   }
 
-  private initGarageLearnModeAccessory({ platform, accessory, model, serialNumber}: InitAccessoryParams){
+  private initGarageLearnModeAccessory({ platform, accessory, friendlyName, serialNumber}: InitAccessoryParams){
     if(this.pluginConfig.enableLearnMode ?? true){
       this.accessories.push(new BlaQGarageLearnModeAccessory({
-        platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
+        platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
       }));
     }
   }
 
-  private initGarageObstructionSensorAccessory({ platform, accessory, model, serialNumber}: InitAccessoryParams){
+  private initGarageObstructionSensorAccessory({ platform, accessory, friendlyName, serialNumber}: InitAccessoryParams){
     if(this.pluginConfig.enableSeparateObstructionSensor ?? true){
       this.accessories.push(new BlaQGarageObstructionSensorAccessory({
-        platform, accessory, model, serialNumber, apiBaseURL: this.getAPIBaseURL(),
+        platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
       }));
     }
   }
 
-  private initAccessories({ model, serialNumber }: ModelAndSerialNumber){
+  private initAccessories({ friendlyName, serialNumber }: FriendlyNameAndSerialNumber){
     const {platform, accessory} = this.initAccessoryCallback(
       this.configDevice,
-      model,
+      friendlyName,
       serialNumber,
     );
-    this.initGarageDoorAccessory({ platform, accessory, model, serialNumber });
-    this.initGarageLightAccessory({ platform, accessory, model, serialNumber });
-    this.initGarageLockAccessory({ platform, accessory, model, serialNumber });
-    this.initGarageMotionSensorAccessory({ platform, accessory, model, serialNumber });
-    this.initGaragePreCloseWarningAccessory({ platform, accessory, model, serialNumber });
-    this.initGarageLearnModeAccessory({ platform, accessory, model, serialNumber });
-    this.initGarageObstructionSensorAccessory({ platform, accessory, model, serialNumber });
+    this.initGarageDoorAccessory({ platform, accessory, friendlyName, serialNumber });
+    this.initGarageLightAccessory({ platform, accessory, friendlyName, serialNumber });
+    this.initGarageLockAccessory({ platform, accessory, friendlyName, serialNumber });
+    this.initGarageMotionSensorAccessory({ platform, accessory, friendlyName, serialNumber });
+    this.initGaragePreCloseWarningAccessory({ platform, accessory, friendlyName, serialNumber });
+    this.initGarageLearnModeAccessory({ platform, accessory, friendlyName, serialNumber });
+    this.initGarageObstructionSensorAccessory({ platform, accessory, friendlyName, serialNumber });
   }
 
   private handlePingUpdate(msg: PingMessageEvent){
     if (!this.initialized && msg.data !== '' ) {
       try {
         const b = JSON.parse(msg.data) as BlaQPingEvent;
-        this.logger.info('[init] Publishing accessories with device model:', b.title);
-        // title example = GDO blaQ 6084d8
-        const titleWithoutGDO = b.title.replace(/^GDO /, '');
-        const model = titleWithoutGDO.split(' ').shift() || 'Unknown';
-        const serialNumber = titleWithoutGDO.split(' ').pop() || 'Unknown';
-        this.initAccessories({
-          model,
-          serialNumber,
-        });
-        this.logger.debug('[init] Accessories initialized!');
-        this.initialized = true;
+        this.friendlyName = b.title;
+        this.possiblyFinalizeInit();
       } catch (e) {
         this.logger.debug('[init] Got event:', msg);
         this.logger.debug('[init] Got event data:', msg.data);
