@@ -56,7 +56,7 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
     // set accessory information
     this.accessoryInformationService
       .setCharacteristic(this.platform.characteristic.Manufacturer, 'Konnected')
-      .setCharacteristic(this.platform.characteristic.Model, 'GDO BlaQ')
+      .setCharacteristic(this.platform.characteristic.Model, 'GDO blaQ')
       .setCharacteristic(this.platform.characteristic.SerialNumber, this.serialNumber)
       .setCharacteristic(this.platform.characteristic.Name, this.friendlyName);
     // Publish firmware version; this may not be initialized yet, so we set a getter.
