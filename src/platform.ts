@@ -4,6 +4,7 @@ import * as Bonjour from 'bonjour-service';
 import { BlaQHub } from './hub.js';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
 import { ConfigDevice } from './types.js';
+import { formatMAC } from './utils/formatters.js';
 
 /**
  * HomebridgePlatform
