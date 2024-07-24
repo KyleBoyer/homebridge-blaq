@@ -24,7 +24,6 @@ export class BlaQGarageLockAccessory extends BaseBlaQAccessory {
 
   constructor(args: BaseBlaQAccessoryConstructorParams) {
     super(args);
-    this.logger.debug('Initializing BlaQGarageLockAccessory...');
     this.lockService = this.getOrAddService(this.platform.service.LockMechanism);
 
     // Set the service name.  This is what is displayed as the name on the Home
@@ -36,7 +35,7 @@ export class BlaQGarageLockAccessory extends BaseBlaQAccessory {
 
     this.lockService.getCharacteristic(this.platform.characteristic.LockTargetState)
       .onSet(this.changeLockState.bind(this));
-    this.logger.debug('Initialized BlaQGarageLockAccessory!');
+    this.logger.debug(`Initialized ${this.getSelfClassName()}!`);
   }
 
   getLockState(): CharacteristicValue {

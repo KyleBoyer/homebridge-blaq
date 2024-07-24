@@ -20,7 +20,6 @@ export class BlaQGarageLearnModeAccessory extends BaseBlaQAccessory {
 
   constructor(args: BaseBlaQAccessoryConstructorParams) {
     super(args);
-    this.logger.debug('Initializing BlaQGarageLearnModeAccessory...');
     this.switchService = this.getOrAddService(this.platform.service.Switch);
 
     // Set the service name.  This is what is displayed as the name on the Home
@@ -30,7 +29,7 @@ export class BlaQGarageLearnModeAccessory extends BaseBlaQAccessory {
     this.switchService.getCharacteristic(this.platform.characteristic.On)
       .onGet(this.getIsOn.bind(this))
       .onSet(this.changeIsOn.bind(this));
-    this.logger.debug('Initialized BlaQGarageLearnModeAccessory!');
+    this.logger.debug(`Initialized ${this.getSelfClassName()}!`);
   }
 
   getIsOn(): CharacteristicValue {

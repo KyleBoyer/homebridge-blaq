@@ -19,7 +19,6 @@ export class BlaQGarageObstructionSensorAccessory extends BaseBlaQAccessory {
 
   constructor(args: BaseBlaQAccessoryConstructorParams) {
     super(args);
-    this.logger.debug('Initializing BlaQGarageObstructionSensorAccessory...');
     this.occupancySensorService = this.getOrAddService(this.platform.service.OccupancySensor);
 
     // Set the service name.  This is what is displayed as the name on the Home
@@ -32,7 +31,7 @@ export class BlaQGarageObstructionSensorAccessory extends BaseBlaQAccessory {
     this.occupancySensorService.getCharacteristic(this.platform.characteristic.OccupancyDetected)
       .onGet(this.getObstructionDetected.bind(this));
 
-    this.logger.debug('Initialized BlaQGarageObstructionSensorAccessory!');
+    this.logger.debug(`Initialized ${this.getSelfClassName()}!`);
   }
 
   getObstructionDetected(): CharacteristicValue {

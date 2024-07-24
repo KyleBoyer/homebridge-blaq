@@ -37,7 +37,6 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
 
   constructor(args: BaseBlaQAccessoryConstructorParams) {
     super(args);
-    this.logger.debug('Initializing BlaQGarageDoorAccessory...');
     this.garageDoorService = this.getOrAddService(this.platform.service.GarageDoorOpener);
 
     // Set the service name.  This is what is displayed as the name on the Home
@@ -67,7 +66,7 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
     this.garageDoorService.getCharacteristic(this.platform.characteristic.LockTargetState)
       .onSet(this.updateLockState.bind(this));
 
-    this.logger.debug('Initialized BlaQGarageDoorAccessory!');
+    this.logger.debug(`Initialized ${this.getSelfClassName()}!`);
   }
 
   private async updateLockState(lockState: CharacteristicValue){

@@ -20,7 +20,6 @@ export class BlaQGarageMotionSensorAccessory extends BaseBlaQAccessory {
 
   constructor(args: BaseBlaQAccessoryConstructorParams) {
     super(args);
-    this.logger.debug('Initializing BlaQGarageMotionSensorAccessory...');
     this.motionSensorService = this.getOrAddService(this.platform.service.MotionSensor);
 
     // Set the service name.  This is what is displayed as the name on the Home
@@ -30,7 +29,7 @@ export class BlaQGarageMotionSensorAccessory extends BaseBlaQAccessory {
     this.motionSensorService.getCharacteristic(this.platform.characteristic.MotionDetected)
       .onGet(this.getMotionDetected.bind(this));
 
-    this.logger.debug('Initialized BlaQGarageMotionSensorAccessory!');
+    this.logger.debug(`Initialized ${this.getSelfClassName()}!`);
   }
 
   getMotionDetected(): CharacteristicValue {

@@ -48,6 +48,7 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
   }: BaseBlaQAccessoryConstructorParams){
     this.platform = platform;
     this.logger = this.platform.logger;
+    this.logger.debug(`Initializing ${this.getSelfClassName()}...`);
     this.accessory = accessory;
     this.friendlyName = friendlyName;
     this.serialNumber = serialNumber;
@@ -64,6 +65,10 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
     this.accessoryInformationService
       .getCharacteristic(this.platform.characteristic.FirmwareRevision)
       .onGet(this.getFirmwareVersion.bind(this));
+  }
+
+  protected getSelfClassName() {
+    return Object.getPrototypeOf(this).constructor.name;
   }
 
   protected getOrAddService(service: WithUUID<typeof Service> | Service): Service{
