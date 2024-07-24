@@ -118,3 +118,6 @@ dist
 .yarn/unplugged
 .yarn/build-state.yml
 .pnp.*
+
+# Localhost deploy script
+deploy.sh
