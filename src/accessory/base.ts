@@ -68,7 +68,7 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
   }
 
   protected getSelfClassName() {
-    return Object.getPrototypeOf(this).constructor.name;
+    return this.constructor.name;
   }
 
   protected getOrAddService(service: WithUUID<typeof Service> | Service): Service{
