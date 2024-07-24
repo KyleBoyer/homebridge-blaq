@@ -1,5 +1,6 @@
 import { AutoReconnectingEventSource, LogMessageEvent, PingMessageEvent, StateUpdateMessageEvent } from './utils/eventsource.js';
 import { Logger, PlatformAccessory, PlatformConfig } from 'homebridge';
+import stripAnsi from 'strip-ansi';
 import { BlaQTextSensorEvent, ConfigDevice } from './types.js';
 import { BaseBlaQAccessoryInterface } from './accessory/base.js';
 import { BlaQHomebridgePluginPlatform } from './platform.js';
@@ -96,7 +97,7 @@ export class BlaQHub {
 
   private possiblyFinalizeInit(){
     if(!this.initialized && this.friendlyName && this.deviceMac){
-      this.logger.info('[init] Publishing accessories with device model:', this.friendlyName);
+      this.logger.info(`[${this.configDevice.displayName}] [init] Publishing accessories with device model:`, this.friendlyName);
       this.initAccessories({
         friendlyName: this.friendlyName,
         serialNumber: this.deviceMac,
@@ -116,7 +117,7 @@ export class BlaQHub {
         });
       });
       this.eventsBeforeAccessoryInit = [];
-      this.logger.debug('[init] Accessories initialized!');
+      this.logger.debug(`[${this.configDevice.displayName}] [init] Accessories initialized!`);
     }
   }
 
@@ -132,12 +133,12 @@ export class BlaQHub {
         }
         this.possiblyFinalizeInit();
       } catch (e) {
-        this.logger.debug('[init] Got event:', msg);
-        this.logger.debug('[init] Got event data:', msg.data);
-        this.logger.error('[init] Cannot parse BlaQTextSensorEvent', e);
+        this.logger.debug(`[${this.configDevice.displayName}] [init] Got event:`, msg);
+        this.logger.debug(`[${this.configDevice.displayName}] [init] Got event data:`, msg.data);
+        this.logger.error(`[${this.configDevice.displayName}] [init] Cannot parse BlaQTextSensorEvent`, e);
       }
     }
-    this.logger.debug('Processing state event:', msg.data);
+    this.logger.debug(`[${this.configDevice.displayName}] Processing state event:`, msg.data);
     this.accessories.forEach(accessory => {
       if(accessory.handleStateEvent){
         accessory.handleStateEvent(msg);
@@ -149,7 +150,7 @@ export class BlaQHub {
     if(!this.initialized){
       this.eventsBeforeAccessoryInit.push({ type: 'log', event: msg });
     }
-    this.logger.debug('BlaQ log:', msg.data);
+    this.logger.debug(`[${this.configDevice.displayName}] GDO blaQ log:`, stripAnsi(msg.data));
     this.accessories.forEach(accessory => {
       if(accessory.handleLogEvent){
         accessory.handleLogEvent(msg);
@@ -236,9 +237,9 @@ export class BlaQHub {
         this.friendlyName = b.title;
         this.possiblyFinalizeInit();
       } catch (e) {
-        this.logger.debug('[init] Got event:', msg);
-        this.logger.debug('[init] Got event data:', msg.data);
-        this.logger.error('[init] Cannot parse BlaQPingEvent', e);
+        this.logger.debug(`[${this.configDevice.displayName}] [init] Got event:`, msg);
+        this.logger.debug(`[${this.configDevice.displayName}] [init] Got event data:`, msg.data);
+        this.logger.error(`[${this.configDevice.displayName}] [init] Cannot parse BlaQPingEvent`, e);
       }
     }
     this.accessories.forEach(accessory => {
