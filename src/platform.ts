@@ -1,4 +1,4 @@
-import { API, Characteristic, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
+import { API, Categories, Characteristic, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
 import * as Bonjour from 'bonjour-service';
 
 import { BlaQHub } from './hub.js';
@@ -128,13 +128,15 @@ export class BlaQHomebridgePluginPlatform implements DynamicPlatformPlugin {
     const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
     const configDeviceKey = this.getDeviceKey(configDevice);
     if (existingAccessory) {
+      // refresh services
       this.logger.info('Restoring existing accessory from cache:', existingAccessory.displayName);
       existingAccessory.context.device = configDevice;
       this.api.updatePlatformAccessories(this.hubAccessories[configDeviceKey] || [existingAccessory]);
+      existingAccessory.services.forEach(service => existingAccessory.removeService(service));
       return { platform: this, accessory: existingAccessory };
     } else {
       this.logger.info(`Adding new accessory: ${model} #${serialnumber}`);
-      const accessory = new this.api.platformAccessory(configDevice.displayName, uuid);
+      const accessory = new this.api.platformAccessory(configDevice.displayName, uuid, Categories.GARAGE_DOOR_OPENER);
       accessory.context.device = configDevice;
       this.hubAccessories[this.getDeviceKey(configDevice)].push(accessory);
       this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, this.hubAccessories[configDeviceKey]);

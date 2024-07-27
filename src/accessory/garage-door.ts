@@ -44,6 +44,9 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
     this.garageDoorService = this.getOrAddService(
       args.type === 'garage' ? this.platform.service.GarageDoorOpener : this.platform.service.WindowCovering,
     );
+    this.removeService(
+      args.type !== 'garage' ? this.platform.service.GarageDoorOpener : this.platform.service.WindowCovering,
+    );
 
     // Set the service name.  This is what is displayed as the name on the Home
     // app.  We use what we stored in `accessory.context` in  `discoverDevices`.

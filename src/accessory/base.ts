@@ -76,6 +76,13 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
         this.accessory.addService(service as Service);
   }
 
+  protected removeService(service: WithUUID<typeof Service> | Service): void{
+    const foundService = this.accessory.getService(service as WithUUID<typeof Service>);
+    if(foundService){
+      this.accessory.removeService(foundService);
+    }
+  }
+
   handleStateEvent(stateEvent: StateUpdateMessageEvent){
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
