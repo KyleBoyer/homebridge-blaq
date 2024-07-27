@@ -18,6 +18,10 @@ const BINARY_SENSOR_PREFIX = 'binary_sensor-';
 const COVER_PREFIX = 'cover-';
 const LOCK_PREFIX = 'lock-';
 
+type BlaQGarageDoorAccessoryConstructorParams = BaseBlaQAccessoryConstructorParams & {
+  type: 'garage' | 'cover';
+};
+
 /**
  * Platform Accessory
  * An instance of this class is created for each accessory your platform registers
@@ -35,9 +39,11 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
   private coverType?: GarageCoverType = 'garage_door';
   private preClosing?: boolean;
 
-  constructor(args: BaseBlaQAccessoryConstructorParams) {
+  constructor(args: BlaQGarageDoorAccessoryConstructorParams) {
     super(args);
-    this.garageDoorService = this.getOrAddService(this.platform.service.GarageDoorOpener);
+    this.garageDoorService = this.getOrAddService(
+      args.type === 'garage' ? this.platform.service.GarageDoorOpener : this.platform.service.WindowCovering,
+    );
 
     // Set the service name.  This is what is displayed as the name on the Home
     // app.  We use what we stored in `accessory.context` in  `discoverDevices`.
@@ -45,6 +51,13 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
 
     this.garageDoorService.getCharacteristic(this.platform.characteristic.CurrentDoorState)
       .onGet(this.getCurrentDoorState.bind(this));
+
+    this.garageDoorService.getCharacteristic(this.platform.characteristic.PositionState)
+      .onGet(this.getCurrentPositionState.bind(this));
+
+    this.garageDoorService.getCharacteristic(this.platform.characteristic.HoldPosition)
+      .onGet(this.getHoldPositionState.bind(this))
+      .onSet(this.setHoldPositionState.bind(this));
 
     this.garageDoorService.getCharacteristic(this.platform.characteristic.CurrentPosition)
       .onGet(this.getCurrentPosition.bind(this));
@@ -103,7 +116,12 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
     );
   }
 
-  getCurrentDoorState(): CharacteristicValue {
+  getCurrentDoorState():
+    typeof this.platform.characteristic.CurrentDoorState.CLOSING |
+    typeof this.platform.characteristic.CurrentDoorState.OPENING |
+    typeof this.platform.characteristic.CurrentDoorState.CLOSED |
+    typeof this.platform.characteristic.CurrentDoorState.OPEN |
+    typeof this.platform.characteristic.CurrentDoorState.STOPPED {
     if(this.preClosing || this.currentOperation === 'CLOSING' || (
       this.position !== undefined && this.targetPosition !== undefined && this.targetPosition < this.position
     )){
@@ -125,10 +143,36 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
     this.updateCurrentDoorState();
   }
 
+  private getHoldPositionState(): CharacteristicValue {
+    return [
+      this.platform.characteristic.CurrentDoorState.STOPPED,
+      this.platform.characteristic.CurrentDoorState.CLOSED,
+      this.platform.characteristic.CurrentDoorState.OPEN,
+    ].includes(this.getCurrentDoorState());
+  }
+
+  private getCurrentPositionState(): CharacteristicValue {
+    return {
+      [this.platform.characteristic.CurrentDoorState.STOPPED]: this.platform.characteristic.PositionState.STOPPED,
+      [this.platform.characteristic.CurrentDoorState.CLOSED]: this.platform.characteristic.PositionState.STOPPED,
+      [this.platform.characteristic.CurrentDoorState.OPEN]: this.platform.characteristic.PositionState.STOPPED,
+      [this.platform.characteristic.CurrentDoorState.CLOSING]: this.platform.characteristic.PositionState.DECREASING,
+      [this.platform.characteristic.CurrentDoorState.OPENING]: this.platform.characteristic.PositionState.INCREASING,
+    }[this.getCurrentDoorState()];
+  }
+
   private updateCurrentDoorState(){
     this.garageDoorService.setCharacteristic(
       this.platform.characteristic.CurrentDoorState,
       this.getCurrentDoorState(),
+    );
+    this.garageDoorService.updateCharacteristic(
+      this.platform.characteristic.PositionState,
+      this.getCurrentPositionState(),
+    );
+    this.garageDoorService.updateCharacteristic(
+      this.platform.characteristic.HoldPosition,
+      this.getHoldPositionState(),
     );
     this.garageDoorService.updateCharacteristic(
       this.platform.characteristic.TargetDoorState,
@@ -185,6 +229,13 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
     }
     return this.platform.characteristic.TargetDoorState.CLOSED;
     // throw new Error(`Invalid target door state: ${this.currentOperation}`);
+  }
+
+  private async setHoldPositionState(target: CharacteristicValue){
+    const shouldHold = target;
+    if(shouldHold){
+      await fetch(`${this.apiBaseURL}/cover/${this.coverType}/stop`, {method: 'POST'});
+    }
   }
 
   private async setTargetDoorState(target: CharacteristicValue){

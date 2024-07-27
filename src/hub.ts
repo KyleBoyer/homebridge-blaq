@@ -160,7 +160,7 @@ export class BlaQHub {
 
   private initGarageDoorAccessory({ platform, accessory, friendlyName, serialNumber}: InitAccessoryParams){
     this.accessories.push(new BlaQGarageDoorAccessory({
-      platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
+      platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(), type: this.pluginConfig.garageDoorType,
     }));
   }
 

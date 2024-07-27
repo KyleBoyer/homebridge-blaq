@@ -53,6 +53,16 @@
           }
         }
       },
+      "garageDoorType": {
+        "title": "Enable publishing a separate \"occupancy\" obstruction sensor for the garage",
+        "type": "string",
+        "default": "garage",
+        "oneOf": [
+          { "title": "Garage Door", "enum": ["garage"] },
+          { "title": "Window Covering (allows positional control)", "enum": ["cover"] }
+        ],
+        "required": true
+      },
       "enableSeparateObstructionSensor": {
         "title": "Enable publishing a separate \"occupancy\" obstruction sensor for the garage",
         "type": "boolean",
