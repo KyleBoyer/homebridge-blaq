@@ -11,7 +11,7 @@
 </span>
 
 Konnected's GDO blaQ device is an interface to garage door openers from Liftmaster, Chamberlain, and others.
-You can purchase a GDO blaQ device here: [Konnected Store](https://konnected.io/KYLEBOYER)
+You can purchase a GDO blaQ device here: [Konnected Store](https://konnected.io/KYLEBOYER) or [Amazon](https://amzn.to/4c495jo)
 
 This plugin enables the use of a GDO blaQ device with Homebridge (and derivatives like HOOBS). It supports most of the same features available to the GDO blaQ REST API. This includes garage door/light/lock controls as well as some sensor data. The full list is below:
 
@@ -37,7 +37,7 @@ Please request these features via the issues section on this repo if you would f
 
 ### Configuration
 
-First, ensure you have fully setup your GDO blaQ device. If you have not purchased one, you can do so here: [Konnected Store](https://konnected.io/KYLEBOYER)
+First, ensure you have fully setup your GDO blaQ device. If you have not purchased one, you can do so here: [Konnected Store](https://konnected.io/KYLEBOYER) or [Amazon](https://amzn.to/4c495jo)
 
 Once you've installed this plugin into Homebridge, it will automatically attempt to discover GDO blaQ devices using mDNS. If auto discovery does not work, the configuration is very straightforward - just use the GUI. If, for whatever reason, you don't want to do so, all you need to supply is a name, port, and host, like so:
 
