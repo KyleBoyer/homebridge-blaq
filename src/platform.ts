@@ -56,13 +56,14 @@ export class BlaQHomebridgePluginPlatform implements DynamicPlatformPlugin {
   }
 
   getDeviceKey(device: ConfigDevice) {
-    if(device.mac && this.hubs[device.mac]) {
-      return device.mac;
+    const correctedMAC = formatMAC(device.mac);
+    if(correctedMAC && this.hubs[correctedMAC]) {
+      return correctedMAC;
     }
     if(this.hubs[device.host]) {
       return device.host;
     }
-    return device.mac || device.host;
+    return correctedMAC || device.host;
   }
 
   possiblyRegisterNewDevice(device: ConfigDevice){
@@ -119,9 +120,9 @@ export class BlaQHomebridgePluginPlatform implements DynamicPlatformPlugin {
     accessory: PlatformAccessory;
   } {
     this.logger.info(`Running registerDiscovered callback for ${model} #${serialnumber}...`);
-
+    const correctedMAC = formatMAC(configDevice.mac);
     // TODO: This would be the spot to add a UUID override to enable the user to transparently replace a device
-    const uuid = this.api.hap.uuid.generate(configDevice.mac || serialnumber);
+    const uuid = this.api.hap.uuid.generate(correctedMAC || serialnumber);
 
     // see if an accessory with the same uuid has already been registered and restored from
     // the cached devices we stored in the `configureAccessory` method above
