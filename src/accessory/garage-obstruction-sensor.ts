@@ -48,6 +48,9 @@ export class BlaQGarageObstructionSensorAccessory extends BaseBlaQAccessory {
 
   handleStateEvent(stateEvent: StateUpdateMessageEvent){
     super.handleStateEvent(stateEvent);
+    if(!this.synced){
+      return;
+    }
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
       if (['binary_sensor-obstruction'].includes(stateInfo.id)) {
@@ -63,6 +66,10 @@ export class BlaQGarageObstructionSensorAccessory extends BaseBlaQAccessory {
   }
 
   handleLogEvent(logEvent: LogMessageEvent){
+    super.handleLogEvent(logEvent);
+    if(!this.synced){
+      return;
+    }
     try {
       const logStr = logEvent.data;
       const lowercaseLogStr = logStr.toLowerCase();

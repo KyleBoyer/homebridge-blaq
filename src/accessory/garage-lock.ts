@@ -71,6 +71,9 @@ export class BlaQGarageLockAccessory extends BaseBlaQAccessory {
 
   handleStateEvent(stateEvent: StateUpdateMessageEvent){
     super.handleStateEvent(stateEvent);
+    if(!this.synced){
+      return;
+    }
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
       if (['lock-lock', 'lock-lock_remotes'].includes(stateInfo.id)) {
@@ -87,6 +90,10 @@ export class BlaQGarageLockAccessory extends BaseBlaQAccessory {
   }
 
   handleLogEvent(logEvent: LogMessageEvent){
+    super.handleLogEvent(logEvent);
+    if(!this.synced){
+      return;
+    }
     try {
       const logStr = logEvent.data;
       const lowercaseLogStr = logStr.toLowerCase();

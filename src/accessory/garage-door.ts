@@ -342,6 +342,9 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
 
   handleStateEvent(stateEvent: StateUpdateMessageEvent){
     super.handleStateEvent(stateEvent);
+    if(!this.synced){
+      return;
+    }
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
       if (['cover-garage_door', 'cover-door'].includes(stateInfo.id)) {
@@ -379,6 +382,10 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
   }
 
   handleLogEvent(logEvent: LogMessageEvent){
+    super.handleLogEvent(logEvent);
+    if(!this.synced){
+      return;
+    }
     try {
       const logStr = logEvent.data;
       const lowercaseLogStr = logStr.toLowerCase();

@@ -32,6 +32,12 @@ export const correctAPIBaseURL = (inputURL: string) => {
 export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
   protected apiBaseURL: string;
   protected firmwareVersion?: string;
+  protected synced?: boolean;
+  protected queuedEvents: {
+    type: 'state' | 'log' | 'ping';
+    event: StateUpdateMessageEvent | LogMessageEvent | PingMessageEvent;
+  }[] = [];
+
   protected readonly accessory: PlatformAccessory;
   protected readonly accessoryInformationService: Service;
   protected readonly logger: Logger;
@@ -83,10 +89,41 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
     }
   }
 
-  handleStateEvent(stateEvent: StateUpdateMessageEvent){
+  processQueuedEvents() {
+    while(this.queuedEvents.length){
+      const event = this.queuedEvents.shift()!;
+      const funcToCall = {
+        'ping': (this as BaseBlaQAccessoryInterface).handlePingEvent?.bind(this),
+        'log': (this as BaseBlaQAccessoryInterface).handleLogEvent?.bind(this),
+        'state': (this as BaseBlaQAccessoryInterface).handleStateEvent?.bind(this),
+      }[event.type];
+      if(funcToCall){
+        funcToCall(event.event);
+      }
+    }
+  }
+
+  handlePingEvent(logEvent: LogMessageEvent){
+    if(!this.synced){
+      this.queuedEvents.push({type: 'ping', event: logEvent});
+    }
+  }
+
+  handleLogEvent(logEvent: LogMessageEvent){
+    if(!this.synced){
+      this.queuedEvents.push({type: 'log', event: logEvent});
+    }
+  }
+
+  handleStateEvent(stateEvent: StateUpdateMessageEvent): void {
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
-      if (['text_sensor-esphome_version', 'text_sensor-firmware_version'].includes(stateInfo.id)) {
+      if (['binary_sensor-synced'].includes(stateInfo.id)) {
+        this.synced = stateInfo.value as boolean | undefined;
+        if(this.synced){
+          this.processQueuedEvents();
+        }
+      }else if (['text_sensor-esphome_version', 'text_sensor-firmware_version'].includes(stateInfo.id)) {
         const b = stateInfo as BlaQTextSensorEvent;
         if (b.value && b.value === b.state) {
           this.setFirmwareVersion(b.value);
@@ -94,6 +131,8 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
           this.logger.error('Mismatched firmware versions in value/state:', b.value, b.state);
           this.firmwareVersion = undefined;
         }
+      } else if(!this.synced){
+        this.queuedEvents.push({type: 'state', event: stateEvent});
       }
     } catch(e) {
       this.logger.error('Cannot deserialize message:', stateEvent);

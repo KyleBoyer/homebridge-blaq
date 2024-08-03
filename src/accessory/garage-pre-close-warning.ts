@@ -52,6 +52,9 @@ export class BlaQGaragePreCloseWarningAccessory extends BaseBlaQAccessory {
 
   handleStateEvent(stateEvent: StateUpdateMessageEvent){
     super.handleStateEvent(stateEvent);
+    if(!this.synced){
+      return;
+    }
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
       if (['button-pre-close_warning'].includes(stateInfo.id)) {
@@ -67,6 +70,10 @@ export class BlaQGaragePreCloseWarningAccessory extends BaseBlaQAccessory {
   }
 
   handleLogEvent(logEvent: LogMessageEvent){
+    super.handleLogEvent(logEvent);
+    if(!this.synced){
+      return;
+    }
     try {
       const logStr = logEvent.data;
       const lowercaseLogStr = logStr.toLowerCase();

@@ -58,6 +58,9 @@ export class BlaQGarageLightAccessory extends BaseBlaQAccessory {
 
   handleStateEvent(stateEvent: StateUpdateMessageEvent){
     super.handleStateEvent(stateEvent);
+    if(!this.synced){
+      return;
+    }
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
       if (['light-garage_light', 'light-light'].includes(stateInfo.id)) {
@@ -74,6 +77,10 @@ export class BlaQGarageLightAccessory extends BaseBlaQAccessory {
   }
 
   handleLogEvent(logEvent: LogMessageEvent){
+    super.handleLogEvent(logEvent);
+    if(!this.synced){
+      return;
+    }
     try {
       const logStr = logEvent.data;
       const lowercaseLogStr = logStr.toLowerCase();
