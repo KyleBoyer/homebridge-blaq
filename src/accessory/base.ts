@@ -103,9 +103,9 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
     }
   }
 
-  handlePingEvent(logEvent: LogMessageEvent){
+  handlePingEvent(pingEvent: PingMessageEvent){
     if(!this.synced){
-      this.queuedEvents.push({type: 'ping', event: logEvent});
+      this.queuedEvents.push({type: 'ping', event: pingEvent});
     }
   }
 
