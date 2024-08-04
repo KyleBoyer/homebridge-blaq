@@ -75,6 +75,7 @@ export class BlaQHub {
     if(this.eventSource){
       this.eventSource.close();
     }
+    this.accessories.forEach(accessory => accessory.resetSyncState());
     this.eventSource = new AutoReconnectingEventSource({
       host: this.host,
       port: this.port,

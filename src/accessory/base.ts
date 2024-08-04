@@ -1,4 +1,5 @@
 import { CharacteristicValue, Logger, PlatformAccessory, Service, WithUUID } from 'homebridge';
+import debounce, { DebouncedFunction } from 'debounce';
 import { LogMessageEvent, PingMessageEvent, StateUpdateMessageEvent, StateUpdateRecord } from '../utils/eventsource';
 import { BlaQHomebridgePluginPlatform } from '../platform';
 import { BlaQTextSensorEvent } from '../types';
@@ -8,6 +9,7 @@ export interface BaseBlaQAccessoryInterface {
     handleStateEvent: (stateEvent: StateUpdateMessageEvent) => void;
     handleLogEvent?: (logEvent: LogMessageEvent) => void;
     handlePingEvent?: (pingEvent: PingMessageEvent) => void;
+    resetSyncState: () => void;
 }
 
 export type BaseBlaQAccessoryConstructorParams = {
@@ -27,6 +29,11 @@ export const correctAPIBaseURL = (inputURL: string) => {
     correctedAPIBaseURL = correctedAPIBaseURL.slice(0, -1);
   }
   return correctedAPIBaseURL;
+};
+
+type DebouncedService = (typeof Service | Service) & {
+  setCharacteristic: DebouncedFunction<(name: string, value: CharacteristicValue) => Service>;
+  updateCharacteristic: DebouncedFunction<(name: string, value: CharacteristicValue) => Service>;
 };
 
 export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
@@ -77,9 +84,10 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
     return this.constructor.name;
   }
 
-  protected getOrAddService(service: WithUUID<typeof Service> | Service): Service{
-    return this.accessory.getService(service as WithUUID<typeof Service>) ||
+  protected getOrAddService(service: WithUUID<typeof Service> | Service): Service {
+    const retService = this.accessory.getService(service as WithUUID<typeof Service>) ||
         this.accessory.addService(service as Service);
+    return this.debounceService(retService);
   }
 
   protected removeService(service: WithUUID<typeof Service> | Service): void{
@@ -87,6 +95,21 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
     if(foundService){
       this.accessory.removeService(foundService);
     }
+  }
+
+  protected debounceService(service: Service): Service {
+    const originalSet = service.setCharacteristic.bind(service);
+    const originalUpdate = service.updateCharacteristic.bind(service);
+    const retService: DebouncedService = service as DebouncedService;
+    retService.setCharacteristic = debounce(
+      (name: string, value: CharacteristicValue) => originalSet(name, value),
+      100,
+    );
+    retService.updateCharacteristic = debounce(
+      (name: string, value: CharacteristicValue) => originalUpdate(name, value),
+      100,
+    );
+    return retService as Service;
   }
 
   processQueuedEvents() {
@@ -101,6 +124,10 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
         funcToCall(event.event);
       }
     }
+  }
+
+  resetSyncState(){
+    this.synced = false;
   }
 
   handlePingEvent(pingEvent: PingMessageEvent){
