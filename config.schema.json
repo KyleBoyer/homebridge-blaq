@@ -53,6 +53,11 @@
           }
         }
       },
+      "enableNativeAPIHeartbeat": {
+        "title": "Prevent random restarts by performing a heartbeat on the Native API",
+        "type": "boolean",
+        "default": true
+      },
       "garageDoorType": {
         "title": "Enable publishing a separate \"occupancy\" obstruction sensor for the garage",
         "type": "string",

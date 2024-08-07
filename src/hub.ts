@@ -1,6 +1,7 @@
 import { AutoReconnectingEventSource, LogMessageEvent, PingMessageEvent, StateUpdateMessageEvent } from './utils/eventsource.js';
 import { Logger, PlatformAccessory, PlatformConfig } from 'homebridge';
 import stripAnsi from 'strip-ansi';
+import { createConnection } from 'net';
 import { BlaQTextSensorEvent, ConfigDevice } from './types.js';
 import { BaseBlaQAccessoryInterface } from './accessory/base.js';
 import { BlaQHomebridgePluginPlatform } from './platform.js';
@@ -64,6 +65,11 @@ export class BlaQHub {
     this.initAccessoryCallback = initAccessoryCallback;
     this.logger = logger;
     this.reinitializeEventSource();
+    if(pluginConfig.enableNativeAPIHeartbeat){
+      setInterval(() => {
+        this.performNativeAPIHeartbeat();
+      }, 5 * 60 * 1000);
+    }
     logger.debug('Initialized BlaQHub!');
   }
 
@@ -94,6 +100,20 @@ export class BlaQHub {
       this.reinitializeEventSource();
       this.accessories.forEach(accessory => accessory.setAPIBaseURL(this.getAPIBaseURL()));
     }
+  }
+
+  public performNativeAPIHeartbeat() {
+    const socket = createConnection(
+      {host: this.host, port: 6053},
+      (
+        () => setTimeout(
+          () => {
+            socket.destroy();
+          },
+          5 * 1000,
+        )
+      ),
+    );
   }
 
   private possiblyFinalizeInit(){
