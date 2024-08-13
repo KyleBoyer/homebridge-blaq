@@ -1,5 +1,4 @@
 import { CharacteristicValue, Service } from 'homebridge';
-import fetch from 'node-fetch'; // I am, in fact, trying to make fetch happen.
 
 import {
   BlaQButtonEvent,
@@ -65,7 +64,7 @@ export class BlaQGarageLockAccessory extends BaseBlaQAccessory {
     const lockDesired = target === this.platform.characteristic.LockTargetState.SECURED;
     const apiTarget: string = lockDesired ? 'lock' : 'unlock';
     if(lockDesired !== this.isLocked){
-      await fetch(`${this.apiBaseURL}/lock/${this.lockType}/${apiTarget}`, {method: 'POST'});
+      await this.authFetch(`${this.apiBaseURL}/lock/${this.lockType}/${apiTarget}`, {method: 'POST'});
     }
   }
 

@@ -2,7 +2,9 @@ export type ConfigDevice = {
     displayName: string;
     host: string;
     port: number;
-    mac ? : string;
+    mac?: string;
+    username?: string;
+    password?: string;
 };
 export type GarageLockType = 'lock' | 'lock_remotes';
 export type GarageLightType = 'garage_light' | 'light';

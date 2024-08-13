@@ -45,6 +45,8 @@ export class BlaQHub {
   private friendlyName?: string;
   private deviceMac?: string;
   private port: number;
+  private user?: string;
+  private pass?: string;
   private eventsBeforeAccessoryInit: {
     type: 'state' | 'log' | 'ping';
     event: StateUpdateMessageEvent | LogMessageEvent | PingMessageEvent;
@@ -62,6 +64,8 @@ export class BlaQHub {
     logger.debug('Initializing BlaQHub...');
     this.host = configDevice.host;
     this.port = configDevice.port;
+    this.user = configDevice.username;
+    this.pass = configDevice.password;
     this.initAccessoryCallback = initAccessoryCallback;
     this.logger = logger;
     this.reinitializeEventSource();
@@ -85,6 +89,8 @@ export class BlaQHub {
     this.eventSource = new AutoReconnectingEventSource({
       host: this.host,
       port: this.port,
+      user: this.user,
+      pass: this.pass,
       logger: this.logger,
       onStateUpdate: (stateEvent) => this.handleStateUpdate(stateEvent),
       onLog: (logEvent) => this.handleLogUpdate(logEvent),
@@ -182,6 +188,8 @@ export class BlaQHub {
   private initGarageDoorAccessory({ platform, accessory, friendlyName, serialNumber}: InitAccessoryParams){
     this.accessories.push(new BlaQGarageDoorAccessory({
       platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(), type: this.pluginConfig.garageDoorType,
+      apiUser: this.user,
+      apiPass: this.pass,
     }));
   }
 
@@ -189,6 +197,8 @@ export class BlaQHub {
     if(this.pluginConfig.enableLight ?? true) {
       this.accessories.push(new BlaQGarageLightAccessory({
         platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
+        apiUser: this.user,
+        apiPass: this.pass,
       }));
     }
   }
@@ -197,6 +207,8 @@ export class BlaQHub {
     if(this.pluginConfig.enableLockRemotes ?? true){
       this.accessories.push(new BlaQGarageLockAccessory({
         platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
+        apiUser: this.user,
+        apiPass: this.pass,
       }));
     }
   }
@@ -205,6 +217,8 @@ export class BlaQHub {
     if(this.pluginConfig.enableMotionSensor ?? true){
       this.accessories.push(new BlaQGarageMotionSensorAccessory({
         platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
+        apiUser: this.user,
+        apiPass: this.pass,
       }));
     }
   }
@@ -213,6 +227,8 @@ export class BlaQHub {
     if(this.pluginConfig.enablePreCloseWarning ?? true){
       this.accessories.push(new BlaQGaragePreCloseWarningAccessory({
         platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
+        apiUser: this.user,
+        apiPass: this.pass,
       }));
     }
   }
@@ -221,6 +237,8 @@ export class BlaQHub {
     if(this.pluginConfig.enableLearnMode ?? true){
       this.accessories.push(new BlaQGarageLearnModeAccessory({
         platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
+        apiUser: this.user,
+        apiPass: this.pass,
       }));
     }
   }
@@ -229,6 +247,8 @@ export class BlaQHub {
     if(this.pluginConfig.enableSeparateObstructionSensor ?? true){
       this.accessories.push(new BlaQGarageObstructionSensorAccessory({
         platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
+        apiUser: this.user,
+        apiPass: this.pass,
       }));
     }
   }

@@ -1,7 +1,9 @@
 import { CharacteristicValue, Logger, PlatformAccessory, Service, WithUUID } from 'homebridge';
+import fetch from 'node-fetch'; // I am, in fact, trying to make fetch happen.
 import { LogMessageEvent, PingMessageEvent, StateUpdateMessageEvent, StateUpdateRecord } from '../utils/eventsource';
 import { BlaQHomebridgePluginPlatform } from '../platform';
 import { BlaQTextSensorEvent } from '../types';
+import type { RequestInfo, RequestInit } from 'node-fetch';
 
 export interface BaseBlaQAccessoryInterface {
     setAPIBaseURL: (apiBaseURL: string) => void;
@@ -14,6 +16,8 @@ export interface BaseBlaQAccessoryInterface {
 export type BaseBlaQAccessoryConstructorParams = {
     accessory: PlatformAccessory;
     apiBaseURL: string;
+    apiUser?: string;
+    apiPass?: string;
     friendlyName: string;
     platform: BlaQHomebridgePluginPlatform;
     serialNumber: string;
@@ -32,6 +36,8 @@ export const correctAPIBaseURL = (inputURL: string) => {
 
 export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
   protected apiBaseURL: string;
+  protected user?: string;
+  protected pass?: string;
   protected firmwareVersion?: string;
   protected synced?: boolean;
   protected queuedEvents: {
@@ -49,6 +55,8 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
   constructor({
     accessory,
     apiBaseURL,
+    apiUser,
+    apiPass,
     friendlyName,
     platform,
     serialNumber,
@@ -60,6 +68,8 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
     this.friendlyName = friendlyName;
     this.serialNumber = serialNumber;
     this.apiBaseURL = correctAPIBaseURL(apiBaseURL);
+    this.user = apiUser;
+    this.pass = apiPass;
     this.accessoryInformationService = this.getOrAddService(this.platform.service.AccessoryInformation);
     // set accessory information
     this.accessoryInformationService
@@ -159,5 +169,17 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
 
   setAPIBaseURL(url: string){
     this.apiBaseURL = correctAPIBaseURL(url);
+  }
+
+  protected authFetch(url: URL | RequestInfo, init?: RequestInit){
+    const newInit = init || {};
+    const basicCreds = `${this.user}:${this.pass}`;
+    newInit['headers'] = {
+      ...newInit['headers'],
+      ...(this.user && this.pass ? {
+        'Authorization': `Basic ${Buffer.from(basicCreds).toString('base64')}`,
+      } : {}),
+    };
+    return fetch(url, newInit);
   }
 }

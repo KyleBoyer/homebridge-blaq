@@ -15,6 +15,8 @@ type AutoReconnectingEventSourceParams = {
     protocol?: 'http' | 'https';
     host: string;
     port?: number;
+    user?: string;
+    pass?: string;
     path?: string;
     logger: Logger;
     onLog?: OnLogCallback;
@@ -30,6 +32,8 @@ export class AutoReconnectingEventSource {
   private protocol: 'http' | 'https';
   private host: string;
   private port: number;
+  private user?: string;
+  private pass?: string;
   private path: string;
   private logger: Logger;
   private onLog: OnLogCallback;
@@ -43,6 +47,8 @@ export class AutoReconnectingEventSource {
     protocol = 'http',
     host,
     port = 80,
+    user,
+    pass,
     path = 'events',
     maxIdleBeforeReconnect = ONE_MINUTE_IN_MS,
     logger,
@@ -59,6 +65,8 @@ export class AutoReconnectingEventSource {
     this.protocol = correctedProtocol as 'http' | 'https';
     this.host = host;
     this.port = port;
+    this.user = user;
+    this.pass = pass;
     const correctedPath = path.startsWith('/') ? path.slice(1) : path;
     this.path = correctedPath;
     this.onLog = onLog;
@@ -71,12 +79,24 @@ export class AutoReconnectingEventSource {
 
   private connectEventSource(){
     if(!this.eventSource){
-      this.eventSource = new EventSource(`${this.protocol}://${this.host}:${this.port}/${this.path}`);
+      const basicCreds = `${this.user}:${this.pass}`;
+      const eventSourceOptions = {
+        headers: {
+          ...(this.user && this.pass ? {
+            'Authorization': `Basic ${Buffer.from(basicCreds).toString('base64')}`,
+          } : {}),
+        },
+      };
+      this.eventSource = new EventSource(`${this.protocol}://${this.host}:${this.port}/${this.path}`, eventSourceOptions);
       this.eventSource.addEventListener('error', error => {
         this.logger.error('EventSource got error', error);
         this.logger.error('Reinitializing EventSource...');
         this.close();
-        this.connectEventSource();
+        if(error.status === 401){
+          this.logger.error('Please configure valid credentials for this device!');
+        }else{
+          this.connectEventSource();
+        }
       });
       this.eventSource.addEventListener('log', log => {
         this.lastEventSourceEventDate = new Date();

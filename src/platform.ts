@@ -6,6 +6,16 @@ import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
 import { ConfigDevice } from './types.js';
 import { formatMAC } from './utils/formatters.js';
 
+const maskPassword = (d: ConfigDevice) => {
+  if(d.password){
+    return {
+      ...d,
+      password: '***',
+    };
+  }
+  return d;
+};
+
 /**
  * HomebridgePlatform
  * This class is the main constructor for your plugin, this is where you should
@@ -77,6 +87,21 @@ export class BlaQHomebridgePluginPlatform implements DynamicPlatformPlugin {
     }
   }
 
+  possiblyMergeWithManualConfigDevice(deviceToMerge: ConfigDevice){
+    let manualConfigDevice = {};
+    for (const configDevice of this.config.devices as ConfigDevice[]) {
+      const matchingMAC = configDevice.mac && formatMAC(configDevice.mac) === formatMAC(deviceToMerge.mac);
+      const matchingHost = configDevice.host && configDevice.host.toLowerCase() === deviceToMerge.host.toLowerCase();
+      if(matchingMAC || matchingHost){
+        manualConfigDevice = configDevice;
+      }
+    }
+    return {
+      ...manualConfigDevice,
+      ...deviceToMerge,
+    };
+  }
+
   searchBonjour(){
     this.bonjourInstance.find({
       type: 'konnected',
@@ -89,13 +114,13 @@ export class BlaQHomebridgePluginPlatform implements DynamicPlatformPlugin {
         service.txt?.project_name?.toLowerCase()?.includes('garage') ||
         service.txt?.project_name?.toLowerCase()?.includes('gdo');
       if(service.txt?.web_api === 'true' && isGarageProject){
-        const configEntry: ConfigDevice = {
+        const configEntry: ConfigDevice = this.possiblyMergeWithManualConfigDevice({
           host: service.addresses?.[0] || service.host,
           port: service.port,
           displayName: service.txt?.friendly_name,
           mac: formatMAC(service.txt?.mac),
-        };
-        this.logger.debug(`Discovered device via mDNS: ${JSON.stringify(configEntry)}`);
+        });
+        this.logger.debug(`Discovered device via mDNS: ${JSON.stringify(maskPassword(configEntry))}`);
         this.possiblyRegisterNewDevice(configEntry);
       }
     });
@@ -110,7 +135,7 @@ export class BlaQHomebridgePluginPlatform implements DynamicPlatformPlugin {
     const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
     setInterval(() => this.searchBonjour(), FIVE_MINUTES_IN_MS);
     for (const configDevice of this.config.devices as ConfigDevice[]) {
-      this.logger.debug(`Discovered device via manual config: ${JSON.stringify(configDevice)}`);
+      this.logger.debug(`Discovered device via manual config: ${JSON.stringify(maskPassword(configDevice))}`);
       this.possiblyRegisterNewDevice(configDevice);
     }
   }

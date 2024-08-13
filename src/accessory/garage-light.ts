@@ -1,5 +1,4 @@
 import { CharacteristicValue, Service } from 'homebridge';
-import fetch from 'node-fetch'; // I am, in fact, trying to make fetch happen.
 
 import {
   BlaQButtonEvent,
@@ -52,7 +51,7 @@ export class BlaQGarageLightAccessory extends BaseBlaQAccessory {
   private async changePowerState(target: CharacteristicValue){
     const apiTarget: string = target ? 'turn_on' : 'turn_off';
     if(target !== this.isOn){
-      await fetch(`${this.apiBaseURL}/light/${this.lightType}/${apiTarget}`, {method: 'POST'});
+      await this.authFetch(`${this.apiBaseURL}/light/${this.lightType}/${apiTarget}`, {method: 'POST'});
     }
   }
 

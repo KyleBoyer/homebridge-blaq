@@ -49,6 +49,20 @@
               "required": false,
               "pattern": "^([A-F0-9]{2}:){5}[A-F0-9]{2}$",
               "placeholder": "00:00:00:00:00:00"
+            },
+            "username": {
+              "title": "(Optional) Username",
+              "description": "Username to access the Native API",
+              "type": "string",
+              "required": false,
+              "placeholder": "abc123"
+            },
+            "password": {
+              "title": "(Optional) Password",
+              "description": "Password to access the Native API",
+              "type": "string",
+              "required": false,
+              "placeholder": "xyz456"
             }
           }
         }

@@ -1,5 +1,4 @@
 import { CharacteristicValue, Service } from 'homebridge';
-import fetch from 'node-fetch'; // I am, in fact, trying to make fetch happen.
 
 import {
   BlaQBinarySensorEvent,
@@ -90,7 +89,7 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
     const apiTarget: string = lockDesired ? 'lock' : 'unlock';
     const currentlyLocked = this.getLockState() === this.platform.characteristic.LockCurrentState.SECURED;
     if(lockDesired !== currentlyLocked){
-      await fetch(`${this.apiBaseURL}/lock/${this.lockType}/${apiTarget}`, {method: 'POST'});
+      await this.authFetch(`${this.apiBaseURL}/lock/${this.lockType}/${apiTarget}`, {method: 'POST'});
     }
   }
 
@@ -265,7 +264,7 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
   private async setHoldPositionState(target: CharacteristicValue){
     const shouldHold = target;
     if(shouldHold){
-      await fetch(`${this.apiBaseURL}/cover/${this.coverType}/stop`, {method: 'POST'});
+      await this.authFetch(`${this.apiBaseURL}/cover/${this.coverType}/stop`, {method: 'POST'});
     }
   }
 
@@ -281,7 +280,7 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
       throw new Error(`Invalid target door state: ${target}`);
     }
     this.updateCurrentDoorState();
-    await fetch(`${this.apiBaseURL}/cover/${this.coverType}/${apiTarget}`, {method: 'POST'});
+    await this.authFetch(`${this.apiBaseURL}/cover/${this.coverType}/${apiTarget}`, {method: 'POST'});
   }
 
   getTargetDoorPosition(): CharacteristicValue {
@@ -313,7 +312,7 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
     }
     this.updateCurrentDoorState();
     if(this.position !== roundedTarget){
-      await fetch(`${this.apiBaseURL}/cover/${this.coverType}/set?position=${roundedTarget / 100}`, {method: 'POST'});
+      await this.authFetch(`${this.apiBaseURL}/cover/${this.coverType}/set?position=${roundedTarget / 100}`, {method: 'POST'});
     }
   }
 

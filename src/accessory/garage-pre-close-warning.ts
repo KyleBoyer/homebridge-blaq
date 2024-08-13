@@ -1,5 +1,4 @@
 import { CharacteristicValue, Service } from 'homebridge';
-import fetch from 'node-fetch'; // I am, in fact, trying to make fetch happen.
 
 import {
   BlaQButtonEvent,
@@ -46,7 +45,7 @@ export class BlaQGaragePreCloseWarningAccessory extends BaseBlaQAccessory {
 
   private async changeIsOn(target: CharacteristicValue){
     if(target && target !== this.isOn){ // only call the API when target = true (button on)
-      await fetch(`${this.apiBaseURL}/button/pre-close_warning/press`, {method: 'POST'});
+      await this.authFetch(`${this.apiBaseURL}/button/pre-close_warning/press`, {method: 'POST'});
     }
   }
 
