@@ -89,11 +89,13 @@ export class BlaQHomebridgePluginPlatform implements DynamicPlatformPlugin {
 
   possiblyMergeWithManualConfigDevice(deviceToMerge: ConfigDevice){
     let manualConfigDevice = {};
-    for (const configDevice of this.config.devices as ConfigDevice[]) {
-      const matchingMAC = configDevice.mac && formatMAC(configDevice.mac) === formatMAC(deviceToMerge.mac);
-      const matchingHost = configDevice.host && configDevice.host.toLowerCase() === deviceToMerge.host.toLowerCase();
-      if(matchingMAC || matchingHost){
-        manualConfigDevice = configDevice;
+    if(Array.isArray(this.config.devices)){
+      for (const configDevice of this.config.devices as ConfigDevice[]) {
+        const matchingMAC = configDevice.mac && formatMAC(configDevice.mac) === formatMAC(deviceToMerge.mac);
+        const matchingHost = configDevice.host && configDevice.host.toLowerCase() === deviceToMerge.host.toLowerCase();
+        if(matchingMAC || matchingHost){
+          manualConfigDevice = configDevice;
+        }
       }
     }
     return {
@@ -134,9 +136,11 @@ export class BlaQHomebridgePluginPlatform implements DynamicPlatformPlugin {
     this.searchBonjour();
     const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
     setInterval(() => this.searchBonjour(), FIVE_MINUTES_IN_MS);
-    for (const configDevice of this.config.devices as ConfigDevice[]) {
-      this.logger.debug(`Discovered device via manual config: ${JSON.stringify(maskPassword(configDevice))}`);
-      this.possiblyRegisterNewDevice(configDevice);
+    if(Array.isArray(this.config.devices)){
+      for (const configDevice of this.config.devices as ConfigDevice[]) {
+        this.logger.debug(`Discovered device via manual config: ${JSON.stringify(maskPassword(configDevice))}`);
+        this.possiblyRegisterNewDevice(configDevice);
+      }
     }
   }
 

@@ -127,30 +127,30 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
     if(this.preClosing || this.currentOperation === 'CLOSING' || (
       this.position !== undefined && this.targetPosition !== undefined && this.targetPosition < this.position
     )){
-      let closingReason = 'current operation is CLOSING';
-      if(this.preClosing){
-        closingReason = 'the pre-close warning is active';
-      } else if(this.position !== undefined && this.targetPosition !== undefined && this.targetPosition < this.position){
-        closingReason = `the target position (${this.targetPosition}) is less than the current position (${this.position})`;
-      }
-      this.logger.debug(`Returning current state CLOSING because: ${closingReason}`);
+      // let closingReason = 'current operation is CLOSING';
+      // if(this.preClosing){
+      //   closingReason = 'the pre-close warning is active';
+      // } else if(this.position !== undefined && this.targetPosition !== undefined && this.targetPosition < this.position){
+      //   closingReason = `the target position (${this.targetPosition}) is less than the current position (${this.position})`;
+      // }
+      // this.logger.debug(`Returning current state CLOSING because: ${closingReason}`);
       return this.platform.characteristic.CurrentDoorState.CLOSING;
     } else if(this.currentOperation === 'OPENING' || (
       this.position !== undefined && this.targetPosition !== undefined && this.targetPosition > this.position
     )){
-      const openingReason =
-        this.currentOperation === 'OPENING' ?
-          'current operation is OPENING' :
-          `the target position (${this.targetPosition}) is greater than the current position (${this.position})`;
-      this.logger.debug(`Returning current state OPENING because: ${openingReason}`);
+      // const openingReason =
+      //   this.currentOperation === 'OPENING' ?
+      //     'current operation is OPENING' :
+      //     `the target position (${this.targetPosition}) is greater than the current position (${this.position})`;
+      // this.logger.debug(`Returning current state OPENING because: ${openingReason}`);
       return this.platform.characteristic.CurrentDoorState.OPENING;
     } else if (this.state === 'OPEN' || (this.position !== undefined && this.position > 0)) {
-      const openReason = this.state === 'OPEN' ? 'the current state is OPEN' : 'the current position is greater than zero';
-      this.logger.debug(`Returning current state OPEN because: ${openReason}`);
+      // const openReason = this.state === 'OPEN' ? 'the current state is OPEN' : 'the current position is greater than zero';
+      // this.logger.debug(`Returning current state OPEN because: ${openReason}`);
       return this.platform.characteristic.CurrentDoorState.OPEN;
     } else if (this.state === 'CLOSED' || (this.position !== undefined && this.position <= 0)) {
-      const closedReason = this.state === 'CLOSED' ? 'the current state is CLOSED' : 'the current position is less than or equal to zero';
-      this.logger.debug(`Returning current state CLOSED because: ${closedReason}`);
+      // const closedReason = this.state === 'CLOSED' ? 'the current state is CLOSED' : 'the current position is less than or equal to zero';
+      // this.logger.debug(`Returning current state CLOSED because: ${closedReason}`);
       return this.platform.characteristic.CurrentDoorState.CLOSED;
     }
     throw new Error(`Invalid door state: ${this.state}`);
@@ -235,28 +235,28 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
 
   getTargetDoorState(): CharacteristicValue {
     if(this.currentOperation === 'CLOSING' || this.preClosing || (this.targetPosition !== undefined && this.targetPosition <= 0)){
-      let closedReason = 'current operation is CLOSING';
-      if(this.preClosing){
-        closedReason = 'the pre-close warning is active';
-      }else if(this.targetPosition !== undefined && this.targetPosition <= 0){
-        closedReason = 'target position is less than or equal to zero';
-      }
-      this.logger.debug(`Returning target state CLOSED because: ${closedReason}`);
+      // let closedReason = 'current operation is CLOSING';
+      // if(this.preClosing){
+      //   closedReason = 'the pre-close warning is active';
+      // }else if(this.targetPosition !== undefined && this.targetPosition <= 0){
+      //   closedReason = 'target position is less than or equal to zero';
+      // }
+      // this.logger.debug(`Returning target state CLOSED because: ${closedReason}`);
       return this.platform.characteristic.TargetDoorState.CLOSED;
     } else if(this.currentOperation === 'OPENING' || (this.targetPosition !== undefined && this.targetPosition > 0)){
-      const openReason = this.currentOperation === 'OPENING' ? 'current operation is OPENING' : 'target position is greater than zero';
-      this.logger.debug(`Returning target state OPEN because: ${openReason}`);
+      // const openReason = this.currentOperation === 'OPENING' ? 'current operation is OPENING' : 'target position is greater than zero';
+      // this.logger.debug(`Returning target state OPEN because: ${openReason}`);
       return this.platform.characteristic.TargetDoorState.OPEN;
     } else if(this.currentOperation === 'IDLE'){
       if(this.state === 'CLOSED'){
-        this.logger.debug('Returning target state CLOSED because: current operation is IDLE and current state is CLOSED');
+        // this.logger.debug('Returning target state CLOSED because: current operation is IDLE and current state is CLOSED');
         return this.platform.characteristic.TargetDoorState.CLOSED;
       }else if(this.state === 'OPEN'){
-        this.logger.debug('Returning target state OPEN because: current operation is IDLE and current state is OPEN');
+        // this.logger.debug('Returning target state OPEN because: current operation is IDLE and current state is OPEN');
         return this.platform.characteristic.TargetDoorState.OPEN;
       }
     }
-    this.logger.debug('Returning target state CLOSED because: no other conditions matched');
+    // this.logger.debug('Returning target state CLOSED because: no other conditions matched');
     return this.platform.characteristic.TargetDoorState.CLOSED;
     // throw new Error(`Invalid target door state: ${this.currentOperation}`);
   }
