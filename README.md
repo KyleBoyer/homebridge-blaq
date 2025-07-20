@@ -10,6 +10,8 @@
 
 </span>
 
+[![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
+
 Konnected's GDO blaQ device is an interface to garage door openers from Liftmaster, Chamberlain, and others.
 You can purchase a GDO blaQ device here: [Konnected Store](https://konnected.io/KYLEBOYER) or [Amazon](https://amzn.to/4c495jo)
 
