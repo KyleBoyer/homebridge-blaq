@@ -1,4 +1,4 @@
-import EventSource from 'eventsource';
+import { EventSource } from 'eventsource';
 import { Logger } from 'homebridge';
 
 export type LogMessageEvent = MessageEvent<string>;
@@ -81,10 +81,17 @@ export class AutoReconnectingEventSource {
     if(!this.eventSource){
       const basicCreds = `${this.user}:${this.pass}`;
       const eventSourceOptions = {
-        headers: {
-          ...(this.user && this.pass ? {
-            'Authorization': `Basic ${Buffer.from(basicCreds).toString('base64')}`,
-          } : {}),
+        fetch: (url: string | URL, options: RequestInit) => {
+          this.logger.debug(`Fetching EventSource URL: ${url} with options:`, options);
+          return fetch(url, {
+            ...options,
+            headers: {
+              ...options.headers,
+              ...(this.user && this.pass ? {
+                'Authorization': `Basic ${Buffer.from(basicCreds).toString('base64')}`,
+              } : {}),
+            },
+          });
         },
       };
       this.eventSource = new EventSource(`${this.protocol}://${this.host}:${this.port}/${this.path}`, eventSourceOptions);
@@ -92,7 +99,7 @@ export class AutoReconnectingEventSource {
         this.logger.error('EventSource got error', error);
         this.logger.error('Reinitializing EventSource...');
         this.close();
-        if(error.status === 401){
+        if(error.code === 401){
           this.logger.error('Please configure valid credentials for this device!');
         }else{
           this.connectEventSource();

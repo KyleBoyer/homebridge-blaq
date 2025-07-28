@@ -149,7 +149,7 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
       // this.logger.debug(`Returning current state OPEN because: ${openReason}`);
       return this.platform.characteristic.CurrentDoorState.OPEN;
     } else if (this.state === 'CLOSED' || (this.position !== undefined && this.position <= 0)) {
-      // const closedReason = this.state === 'CLOSED' ? 'the current state is CLOSED' : 'the current position is less than or equal to zero';
+      // const closedReason = this.state === 'CLOSED' ? 'the current state is CLOSED' : 'current position is less than or equal to zero';
       // this.logger.debug(`Returning current state CLOSED because: ${closedReason}`);
       return this.platform.characteristic.CurrentDoorState.CLOSED;
     }

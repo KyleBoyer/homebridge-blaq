@@ -17,7 +17,7 @@
     "target": "ES2022"
   },
   "include": [
-    "eslint.config.mjs",
+    "eslint.config.js",
     "homebridge-ui",
     "src"
   ]
