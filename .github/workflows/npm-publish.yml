@@ -7,15 +7,19 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # Lets the runner mint the OIDC token that npm trades for publish rights.
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      # Setup .npmrc file to publish to npm
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version: '20.x'
+          # Trusted publishing requires Node >= 22.14.0.
+          node-version: '24.x'
           registry-url: 'https://registry.npmjs.org'
+      # ...and npm >= 11.5.1, which is newer than the npm bundled with Node.
+      - run: npm install -g npm@latest
       - run: npm ci
-      - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # No NODE_AUTH_TOKEN: auth comes from the OIDC token via the trusted publisher
+      # configured on npmjs.com. Provenance is attested automatically under trusted
+      # publishing, so --provenance is no longer needed.
+      - run: npm publish --access public
