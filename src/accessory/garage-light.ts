@@ -2,12 +2,10 @@ import { CharacteristicValue, Service } from 'homebridge';
 
 import {
   BlaQButtonEvent,
-  GarageLightType,
 } from '../types.js';
+import { ENTITY_KEYS, isEntity, parseStateRecord } from '../utils/entity-ids.js';
 import { LogMessageEvent, StateUpdateMessageEvent, StateUpdateRecord } from '../utils/eventsource.js';
 import { BaseBlaQAccessory, BaseBlaQAccessoryConstructorParams } from './base.js';
-
-const LIGHT_PREFIX = 'light-';
 
 export const label = 'Light';
 
@@ -19,7 +17,6 @@ export const label = 'Light';
 export class BlaQGarageLightAccessory extends BaseBlaQAccessory {
   private lightbulbService: Service;
   private isOn?: boolean;
-  private lightType?: GarageLightType = 'garage_light';
 
   constructor(args: BaseBlaQAccessoryConstructorParams) {
     super(args);
@@ -51,7 +48,7 @@ export class BlaQGarageLightAccessory extends BaseBlaQAccessory {
   private async changePowerState(target: CharacteristicValue){
     const apiTarget: string = target ? 'turn_on' : 'turn_off';
     if(target !== this.isOn){
-      await this.authFetch(`${this.apiBaseURL}/light/${this.lightType}/${apiTarget}`, {method: 'POST'});
+      await this.entityFetch(ENTITY_KEYS.light, apiTarget);
     }
   }
 
@@ -62,9 +59,9 @@ export class BlaQGarageLightAccessory extends BaseBlaQAccessory {
     }
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
-      if (['light-garage_light', 'light-light'].includes(stateInfo.id)) {
+      const entity = parseStateRecord(stateInfo);
+      if (isEntity(entity, ENTITY_KEYS.light)) {
         const buttonEvent = stateInfo as BlaQButtonEvent & { state?: 'ON' | 'OFF' };
-        this.lightType = stateInfo.id.split(LIGHT_PREFIX).pop() as GarageLightType;
         if(['OFF', 'ON'].includes(buttonEvent.state?.toUpperCase() || '')){
           this.setPowerState(buttonEvent.state?.toUpperCase() === 'ON');
         }

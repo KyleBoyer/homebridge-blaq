@@ -3,7 +3,13 @@ import fetch from 'node-fetch'; // I am, in fact, trying to make fetch happen.
 import { LogMessageEvent, PingMessageEvent, StateUpdateMessageEvent, StateUpdateRecord } from '../utils/eventsource';
 import { BlaQHomebridgePluginPlatform } from '../platform';
 import { BlaQTextSensorEvent } from '../types';
-import type { RequestInfo, RequestInit } from 'node-fetch';
+import {
+  ENTITY_KEYS,
+  buildEntityPathCandidates,
+  isEntity,
+  parseStateRecord,
+} from '../utils/entity-ids.js';
+import type { RequestInfo, RequestInit, Response } from 'node-fetch';
 
 export interface BaseBlaQAccessoryInterface {
     setAPIBaseURL: (apiBaseURL: string) => void;
@@ -44,6 +50,9 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
     type: 'state' | 'log' | 'ping';
     event: StateUpdateMessageEvent | LogMessageEvent | PingMessageEvent;
   }[] = [];
+
+  /** Legacy entity key -> REST path that this device is known to accept. */
+  private readonly entityPaths: Map<string, string> = new Map();
 
   protected readonly accessory: PlatformAccessory;
   protected readonly accessoryInformationService: Service;
@@ -133,12 +142,17 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
   handleStateEvent(stateEvent: StateUpdateMessageEvent): void {
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
-      if (['binary_sensor-synced'].includes(stateInfo.id)) {
+      const entity = parseStateRecord(stateInfo);
+      if (entity) {
+        // The device is the source of truth for its own URLs, so remember what it told us.
+        this.entityPaths.set(entity.key, entity.path);
+      }
+      if (isEntity(entity, ENTITY_KEYS.synced)) {
         this.synced = stateInfo.value as boolean | undefined;
         if(this.synced){
           this.processQueuedEvents();
         }
-      }else if (['text_sensor-esphome_version', 'text_sensor-firmware_version'].includes(stateInfo.id)) {
+      }else if (isEntity(entity, ENTITY_KEYS.firmwareVersion)) {
         const b = stateInfo as BlaQTextSensorEvent;
         if (b.value && b.value === b.state) {
           this.setFirmwareVersion(b.value);
@@ -169,6 +183,31 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
 
   setAPIBaseURL(url: string){
     this.apiBaseURL = correctAPIBaseURL(url);
+  }
+
+  /**
+   * POSTs an action to an entity, falling back through the known URL formats on a 404 so that the
+   * same code works against firmware from either side of the ESPHome 2026.7 URL change, and
+   * regardless of which spelling of the entity's object_id the device settled on.
+   */
+  protected async entityFetch(entityKeys: string[], action?: string, query?: string): Promise<Response | undefined> {
+    const suffix = `${action ? `/${action}` : ''}${query ? `?${query}` : ''}`;
+    const candidates = buildEntityPathCandidates(entityKeys, this.entityPaths);
+    let response: Response | undefined;
+    for(const path of candidates){
+      response = await this.authFetch(`${this.apiBaseURL}${path}${suffix}`, {method: 'POST'});
+      if(response.status !== 404){
+        this.entityPaths.set(entityKeys[0], path); // skip straight to this one next time
+        return response;
+      }
+      this.logger.debug(`Got a 404 for ${path}${suffix}; trying the next known URL format...`);
+    }
+    if(!response){
+      this.logger.error(`Cannot build a URL for unrecognized entity: ${entityKeys.join(', ')}`);
+    }else{
+      this.logger.error(`No known URL format worked for ${entityKeys[0]}; tried: ${candidates.join(', ')}`);
+    }
+    return response;
   }
 
   protected authFetch(url: URL | RequestInfo, init?: RequestInit){

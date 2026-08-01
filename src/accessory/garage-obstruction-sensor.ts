@@ -3,6 +3,7 @@ import { CharacteristicValue, Service } from 'homebridge';
 import {
   BlaQBinarySensorEvent,
 } from '../types.js';
+import { ENTITY_KEYS, isEntity, parseStateRecord } from '../utils/entity-ids.js';
 import { LogMessageEvent, StateUpdateMessageEvent, StateUpdateRecord } from '../utils/eventsource.js';
 import { BaseBlaQAccessory, BaseBlaQAccessoryConstructorParams } from './base.js';
 
@@ -53,7 +54,7 @@ export class BlaQGarageObstructionSensorAccessory extends BaseBlaQAccessory {
     }
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
-      if (['binary_sensor-obstruction'].includes(stateInfo.id)) {
+      if (isEntity(parseStateRecord(stateInfo), ENTITY_KEYS.obstruction)) {
         const sensorEvent = stateInfo as BlaQBinarySensorEvent;
         if(['OFF', 'ON'].includes(sensorEvent.state.toUpperCase())){
           this.setObstructionDetected(sensorEvent.state.toUpperCase() === 'ON');

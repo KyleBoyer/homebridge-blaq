@@ -2,12 +2,10 @@ import { CharacteristicValue, Service } from 'homebridge';
 
 import {
   BlaQButtonEvent,
-  GarageLockType,
 } from '../types.js';
+import { ENTITY_KEYS, isEntity, parseStateRecord } from '../utils/entity-ids.js';
 import { LogMessageEvent, StateUpdateMessageEvent, StateUpdateRecord } from '../utils/eventsource.js';
 import { BaseBlaQAccessory, BaseBlaQAccessoryConstructorParams } from './base.js';
-
-const LOCK_PREFIX = 'lock-';
 
 export const label = 'Lock Remotes';
 
@@ -19,7 +17,6 @@ export const label = 'Lock Remotes';
 export class BlaQGarageLockAccessory extends BaseBlaQAccessory {
   private lockService: Service;
   private isLocked?: boolean;
-  private lockType?: GarageLockType = 'lock';
 
   constructor(args: BaseBlaQAccessoryConstructorParams) {
     super(args);
@@ -64,7 +61,7 @@ export class BlaQGarageLockAccessory extends BaseBlaQAccessory {
     const lockDesired = target === this.platform.characteristic.LockTargetState.SECURED;
     const apiTarget: string = lockDesired ? 'lock' : 'unlock';
     if(lockDesired !== this.isLocked){
-      await this.authFetch(`${this.apiBaseURL}/lock/${this.lockType}/${apiTarget}`, {method: 'POST'});
+      await this.entityFetch(ENTITY_KEYS.lock, apiTarget);
     }
   }
 
@@ -75,9 +72,9 @@ export class BlaQGarageLockAccessory extends BaseBlaQAccessory {
     }
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
-      if (['lock-lock', 'lock-lock_remotes'].includes(stateInfo.id)) {
+      const entity = parseStateRecord(stateInfo);
+      if (isEntity(entity, ENTITY_KEYS.lock)) {
         const buttonEvent = stateInfo as BlaQButtonEvent & { state?: 'ON' | 'OFF' };
-        this.lockType = stateInfo.id.split(LOCK_PREFIX).pop() as GarageLockType;
         if(['UNLOCKED', 'LOCKED'].includes(buttonEvent.state?.toUpperCase() || '')){
           this.setLockState(buttonEvent.state?.toUpperCase() === 'LOCKED');
         }

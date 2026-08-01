@@ -5,17 +5,12 @@ import {
   BlaQCoverDoorEvent,
   BlaQLockEvent,
   CurrentOperationType,
-  GarageCoverType,
-  GarageLockType,
   LockStateType,
   OpenClosedStateType,
 } from '../types.js';
+import { ENTITY_KEYS, isEntity, parseStateRecord } from '../utils/entity-ids.js';
 import { LogMessageEvent, StateUpdateMessageEvent, StateUpdateRecord } from '../utils/eventsource.js';
 import { BaseBlaQAccessory, BaseBlaQAccessoryConstructorParams } from './base.js';
-
-const BINARY_SENSOR_PREFIX = 'binary_sensor-';
-const COVER_PREFIX = 'cover-';
-const LOCK_PREFIX = 'lock-';
 
 type BlaQGarageDoorAccessoryConstructorParams = BaseBlaQAccessoryConstructorParams & {
   type: 'garage' | 'cover';
@@ -34,8 +29,6 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
   private currentOperation?: CurrentOperationType;
   private obstructed?: boolean;
   private lockState: LockStateType = 'UNKNOWN';
-  private lockType?: GarageLockType = 'lock';
-  private coverType?: GarageCoverType = 'garage_door';
   private preClosing?: boolean;
 
   constructor(args: BlaQGarageDoorAccessoryConstructorParams) {
@@ -89,7 +82,7 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
     const apiTarget: string = lockDesired ? 'lock' : 'unlock';
     const currentlyLocked = this.getLockState() === this.platform.characteristic.LockCurrentState.SECURED;
     if(lockDesired !== currentlyLocked){
-      await this.authFetch(`${this.apiBaseURL}/lock/${this.lockType}/${apiTarget}`, {method: 'POST'});
+      await this.entityFetch(ENTITY_KEYS.lock, apiTarget);
     }
   }
 
@@ -264,7 +257,7 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
   private async setHoldPositionState(target: CharacteristicValue){
     const shouldHold = target;
     if(shouldHold){
-      await this.authFetch(`${this.apiBaseURL}/cover/${this.coverType}/stop`, {method: 'POST'});
+      await this.entityFetch(ENTITY_KEYS.cover, 'stop');
     }
   }
 
@@ -280,7 +273,7 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
       throw new Error(`Invalid target door state: ${target}`);
     }
     this.updateCurrentDoorState();
-    await this.authFetch(`${this.apiBaseURL}/cover/${this.coverType}/${apiTarget}`, {method: 'POST'});
+    await this.entityFetch(ENTITY_KEYS.cover, apiTarget);
   }
 
   getTargetDoorPosition(): CharacteristicValue {
@@ -312,7 +305,7 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
     }
     this.updateCurrentDoorState();
     if(this.position !== roundedTarget){
-      await this.authFetch(`${this.apiBaseURL}/cover/${this.coverType}/set?position=${roundedTarget / 100}`, {method: 'POST'});
+      await this.entityFetch(ENTITY_KEYS.cover, 'set', `position=${roundedTarget / 100}`);
     }
   }
 
@@ -346,9 +339,9 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
     }
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
-      if (['cover-garage_door', 'cover-door'].includes(stateInfo.id)) {
+      const entity = parseStateRecord(stateInfo);
+      if (isEntity(entity, ENTITY_KEYS.cover)) {
         const doorEvent = stateInfo as BlaQCoverDoorEvent;
-        this.coverType = stateInfo.id.split(COVER_PREFIX).pop() as GarageCoverType;
         this.setCurrentDoorState(doorEvent.state);
         this.setCurrentOperation(doorEvent.current_operation);
         const curPos = Math.round(doorEvent.position * 100);
@@ -356,14 +349,10 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
           this.setTargetDoorPosition(curPos);
         }
         this.setCurrentPosition(curPos);
-      } else if (stateInfo.id.startsWith(BINARY_SENSOR_PREFIX)) {
+      } else if (isEntity(entity, ENTITY_KEYS.obstruction)) {
         const binarySensorEvent = stateInfo as BlaQBinarySensorEvent;
-        const short_id = binarySensorEvent.id.split(BINARY_SENSOR_PREFIX).pop();
-        if (short_id === 'obstruction') {
-          this.setObstructed(binarySensorEvent.value);
-        }
-      } else if (['lock-lock', 'lock-lock_remotes'].includes(stateInfo.id)) {
-        this.lockType = stateInfo.id.split(LOCK_PREFIX).pop() as GarageLockType;
+        this.setObstructed(binarySensorEvent.value);
+      } else if (isEntity(entity, ENTITY_KEYS.lock)) {
         const b = stateInfo as BlaQLockEvent;
         const lockStateMap: Record<string, LockStateType> = {
           'LOCKED': 'SECURED',

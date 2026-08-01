@@ -13,6 +13,7 @@ import { BlaQGaragePreCloseWarningAccessory } from './accessory/garage-pre-close
 import { BlaQGarageLearnModeAccessory } from './accessory/garage-learn-mode.js';
 import { BlaQGarageObstructionSensorAccessory } from './accessory/garage-obstruction-sensor.js';
 import { formatMAC } from './utils/formatters.js';
+import { ENTITY_KEYS, isEntity, parseStateRecord } from './utils/entity-ids.js';
 
 interface BlaQPingEvent {
   title: string;
@@ -155,7 +156,7 @@ export class BlaQHub {
     if (!this.initialized && msg.data !== '' ) {
       try {
         const b = JSON.parse(msg.data) as BlaQTextSensorEvent;
-        if(['text_sensor-device_id'].includes(b.id)){
+        if(isEntity(parseStateRecord(b), ENTITY_KEYS.deviceID)){
           this.deviceMac = formatMAC(b.value);
         }
         this.possiblyFinalizeInit();

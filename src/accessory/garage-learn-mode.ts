@@ -3,6 +3,7 @@ import { CharacteristicValue, Service } from 'homebridge';
 import {
   BlaQButtonEvent,
 } from '../types.js';
+import { ENTITY_KEYS, isEntity, parseStateRecord } from '../utils/entity-ids.js';
 import { LogMessageEvent, StateUpdateMessageEvent, StateUpdateRecord } from '../utils/eventsource.js';
 import { BaseBlaQAccessory, BaseBlaQAccessoryConstructorParams } from './base.js';
 
@@ -46,7 +47,7 @@ export class BlaQGarageLearnModeAccessory extends BaseBlaQAccessory {
   private async changeIsOn(target: CharacteristicValue){
     const apiTarget: string = target ? 'turn_on' : 'turn_off';
     if(target !== this.isOn){ // only call the API when target = true (button on)
-      await this.authFetch(`${this.apiBaseURL}/switch/learn/${apiTarget}`, {method: 'POST'});
+      await this.entityFetch(ENTITY_KEYS.learnMode, apiTarget);
     }
   }
 
@@ -57,7 +58,7 @@ export class BlaQGarageLearnModeAccessory extends BaseBlaQAccessory {
     }
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
-      if (['switch-learn'].includes(stateInfo.id)) {
+      if (isEntity(parseStateRecord(stateInfo), ENTITY_KEYS.learnMode)) {
         const buttonEvent = stateInfo as BlaQButtonEvent & { state?: 'ON' | 'OFF' };
         if(['OFF', 'ON'].includes(buttonEvent.state?.toUpperCase() || '')){
           this.setIsOn(buttonEvent.state?.toUpperCase() === 'ON');

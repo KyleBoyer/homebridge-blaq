@@ -3,6 +3,7 @@ import { CharacteristicValue, Service } from 'homebridge';
 import {
   BlaQButtonEvent,
 } from '../types.js';
+import { ENTITY_KEYS, isEntity, parseStateRecord } from '../utils/entity-ids.js';
 import { LogMessageEvent, StateUpdateMessageEvent, StateUpdateRecord } from '../utils/eventsource.js';
 import { BaseBlaQAccessory, BaseBlaQAccessoryConstructorParams } from './base.js';
 
@@ -45,7 +46,7 @@ export class BlaQGaragePreCloseWarningAccessory extends BaseBlaQAccessory {
 
   private async changeIsOn(target: CharacteristicValue){
     if(target && target !== this.isOn){ // only call the API when target = true (button on)
-      await this.authFetch(`${this.apiBaseURL}/button/pre-close_warning/press`, {method: 'POST'});
+      await this.entityFetch(ENTITY_KEYS.preCloseWarning, 'press');
     }
   }
 
@@ -56,7 +57,7 @@ export class BlaQGaragePreCloseWarningAccessory extends BaseBlaQAccessory {
     }
     try {
       const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
-      if (['button-pre-close_warning'].includes(stateInfo.id)) {
+      if (isEntity(parseStateRecord(stateInfo), ENTITY_KEYS.preCloseWarning)) {
         const buttonEvent = stateInfo as BlaQButtonEvent & { state?: 'ON' | 'OFF' };
         if(['OFF', 'ON'].includes(buttonEvent.state?.toUpperCase() || '')){
           this.setIsOn(buttonEvent.state?.toUpperCase() === 'ON');

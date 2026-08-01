@@ -6,9 +6,6 @@ export type ConfigDevice = {
     username?: string;
     password?: string;
 };
-export type GarageLockType = 'lock' | 'lock_remotes';
-export type GarageLightType = 'garage_light' | 'light';
-export type GarageCoverType = 'garage_door' | 'door';
 export type LockStateType = 'UNSECURED' | 'SECURED' | 'JAMMED' | 'UNKNOWN';
 export type CurrentOperationType = 'IDLE' | 'OPENING' | 'CLOSING';
 export type OpenClosedStateType = 'CLOSED' | 'OPEN';

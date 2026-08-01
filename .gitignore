@@ -121,3 +121,5 @@ dist
 
 # Localhost deploy script
 deploy.sh
+# macOS
+.DS_Store

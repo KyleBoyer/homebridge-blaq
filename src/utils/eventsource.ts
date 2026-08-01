@@ -5,6 +5,8 @@ export type LogMessageEvent = MessageEvent<string>;
 type OnLogCallback = (logEvent: LogMessageEvent) => void;
 export type StateUpdateRecord = Record<string, unknown> & {
     id: string;
+    /** Present only on ESPHome 2026.1.3 through 2026.7.x; see utils/entity-ids.ts */
+    name_id?: string;
 };
 export type StateUpdateMessageEvent = MessageEvent<string>;
 type OnStateUpdateCallback = (stateEvent: StateUpdateMessageEvent) => void;
