@@ -2,6 +2,8 @@ name: Publish Package to npmjs
 on:
   release:
     types: [published]
+  # Manual retry, for when a publish fails after the release is already out.
+  workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
