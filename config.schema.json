@@ -73,12 +73,12 @@
         "default": true
       },
       "garageDoorType": {
-        "title": "Enable publishing a separate \"occupancy\" obstruction sensor for the garage",
+        "title": "Garage door device type",
         "type": "string",
         "default": "garage",
         "oneOf": [
-          { "title": "Garage Door", "enum": ["garage"] },
-          { "title": "Window Covering (allows positional control)", "enum": ["cover"] }
+          { "title": "Garage Door (open/close)", "enum": ["garage"] },
+          { "title": "Window Covering (open/close + positional control)", "enum": ["cover"] }
         ],
         "required": true
       },
