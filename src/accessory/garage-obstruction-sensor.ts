@@ -1,10 +1,7 @@
 import { CharacteristicValue, Service } from 'homebridge';
 
-import {
-  BlaQBinarySensorEvent,
-} from '../types.js';
-import { ENTITY_KEYS, isEntity, parseStateRecord } from '../utils/entity-ids.js';
-import { LogMessageEvent, StateUpdateMessageEvent, StateUpdateRecord } from '../utils/eventsource.js';
+import { ENTITY_KEYS } from '../utils/entity-ids.js';
+import { EntityState } from '../transport/types.js';
 import { BaseBlaQAccessory, BaseBlaQAccessoryConstructorParams } from './base.js';
 
 export const label = 'Obstruction Sensor';
@@ -47,32 +44,20 @@ export class BlaQGarageObstructionSensorAccessory extends BaseBlaQAccessory {
     );
   }
 
-  handleStateEvent(stateEvent: StateUpdateMessageEvent){
-    super.handleStateEvent(stateEvent);
-    if(!this.synced){
-      return;
-    }
-    try {
-      const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
-      if (isEntity(parseStateRecord(stateInfo), ENTITY_KEYS.obstruction)) {
-        const sensorEvent = stateInfo as BlaQBinarySensorEvent;
-        if(['OFF', 'ON'].includes(sensorEvent.state.toUpperCase())){
-          this.setObstructionDetected(sensorEvent.state.toUpperCase() === 'ON');
-        }
-      }
-    } catch(e) {
-      this.logger.error('Cannot deserialize message:', stateEvent);
-      this.logger.error('Deserialization yielded:', e);
+  handleStateEvent(state: EntityState){
+    super.handleStateEvent(state);
+    if(this.synced && state.type === 'onoff' && ENTITY_KEYS.obstruction.includes(state.key)){
+      this.setObstructionDetected(state.on);
     }
   }
 
-  handleLogEvent(logEvent: LogMessageEvent){
-    super.handleLogEvent(logEvent);
+  handleLogEvent(line: string){
+    super.handleLogEvent(line);
     if(!this.synced){
       return;
     }
     try {
-      const logStr = logEvent.data;
+      const logStr = line;
       const lowercaseLogStr = logStr.toLowerCase();
       const obstructionStateOn =
         lowercaseLogStr.includes('obstruction') && lowercaseLogStr.includes('state') && lowercaseLogStr.includes('on');

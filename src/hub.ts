@@ -1,7 +1,5 @@
-import { AutoReconnectingEventSource, LogMessageEvent, PingMessageEvent, StateUpdateMessageEvent } from './utils/eventsource.js';
 import { Logger, PlatformAccessory, PlatformConfig } from 'homebridge';
-import stripAnsi from 'strip-ansi';
-import { BlaQTextSensorEvent, ConfigDevice } from './types.js';
+import { ConfigDevice } from './types.js';
 import { BaseBlaQAccessoryInterface } from './accessory/base.js';
 import { BlaQHomebridgePluginPlatform } from './platform.js';
 import { BlaQGarageDoorAccessory } from './accessory/garage-door.js';
@@ -11,17 +9,10 @@ import { BlaQGarageMotionSensorAccessory } from './accessory/garage-motion-senso
 import { BlaQGaragePreCloseWarningAccessory } from './accessory/garage-pre-close-warning.js';
 import { BlaQGarageLearnModeAccessory } from './accessory/garage-learn-mode.js';
 import { BlaQGarageObstructionSensorAccessory } from './accessory/garage-obstruction-sensor.js';
-import { formatMAC } from './utils/formatters.js';
 import { NativeAPIHeartbeat } from './utils/native-api-heartbeat.js';
-import { ENTITY_KEYS, isEntity, parseStateRecord } from './utils/entity-ids.js';
-
-interface BlaQPingEvent {
-  title: string;
-  comment: string;
-  ota: boolean;
-  log: boolean;
-  lang: string;
-}
+import { BlaQTransport, DeviceIdentity, EntityCommand, EntityState, TransportHandlers } from './transport/types.js';
+import { NativeTransport } from './transport/native.js';
+import { WebTransport } from './transport/web.js';
 
 type FriendlyNameAndSerialNumber = {
   friendlyName: string;
@@ -38,159 +29,162 @@ export type BlaQInitAccessoryCallback = (configDevice: ConfigDevice, Model: stri
   accessory: PlatformAccessory;
 };
 
+export type ConnectionMode = 'auto' | 'native' | 'web';
+
+const NATIVE_RETRY_MS = 30 * 1000;
+
+type BufferedEvent = { type: 'state'; state: EntityState } | { type: 'log'; line: string };
+
 export class BlaQHub {
   private accessories: BaseBlaQAccessoryInterface[] = [];
-  private eventSource?: AutoReconnectingEventSource;
+  private transport?: BlaQTransport;
   private nativeAPIHeartbeat?: NativeAPIHeartbeat;
   private host: string;
-  private initialized = false;
-  private friendlyName?: string;
-  private deviceMac?: string;
   private port: number;
-  private user?: string;
-  private pass?: string;
-  private eventsBeforeAccessoryInit: {
-    type: 'state' | 'log' | 'ping';
-    event: StateUpdateMessageEvent | LogMessageEvent | PingMessageEvent;
-  }[] = [];
-
-  private readonly initAccessoryCallback: BlaQInitAccessoryCallback;
-  private readonly logger: Logger;
+  private initialized = false;
+  private eventsBeforeAccessoryInit: BufferedEvent[] = [];
+  private readonly logPrefix: string;
 
   constructor(
     private readonly pluginConfig: PlatformConfig,
     private readonly configDevice: ConfigDevice,
-    initAccessoryCallback: BlaQInitAccessoryCallback,
-    logger: Logger,
+    private readonly initAccessoryCallback: BlaQInitAccessoryCallback,
+    private readonly logger: Logger,
   ) {
     logger.debug('Initializing BlaQHub...');
     this.host = configDevice.host;
     this.port = configDevice.port;
-    this.user = configDevice.username;
-    this.pass = configDevice.password;
-    this.initAccessoryCallback = initAccessoryCallback;
-    this.logger = logger;
-    this.reinitializeEventSource();
-    if(pluginConfig.enableNativeAPIHeartbeat){
-      this.nativeAPIHeartbeat = new NativeAPIHeartbeat({
-        getHost: () => this.host,
-        login: pluginConfig.enableNativeAPIHeartbeatLogin ?? true,
-        logger,
-        logPrefix: `[${configDevice.displayName}]`,
-      });
-    }
-    logger.debug('Initialized BlaQHub!');
+    this.logPrefix = `[${configDevice.displayName}]`;
+    void this.connect();
   }
 
-  private getAPIBaseURL(){
-    return `http://${this.host}:${this.port}`;
+  private get handlers(): TransportHandlers {
+    return {
+      onState: state => this.handleState(state),
+      onLog: line => this.handleLog(line),
+      onIdentity: identity => this.possiblyFinalizeInit(identity),
+      onConnect: () => this.accessories.forEach(accessory => accessory.resetSyncState()),
+    };
   }
 
-  private reinitializeEventSource(){
-    if(this.eventSource){
-      this.eventSource.close();
+  // shortcut: auto mode picks a transport once, so a device offline at startup stays on the web API
+  // until restart; re-probe the Native API on a timer if users hit this.
+  private async connect() {
+    const mode: ConnectionMode = this.pluginConfig.connectionType ?? 'auto';
+    if (mode !== 'web') {
+      try {
+        this.transport = await NativeTransport.open({
+          host: this.host,
+          encryptionKey: this.configDevice.encryptionKey,
+          logger: this.logger,
+          logPrefix: this.logPrefix,
+          handlers: this.handlers,
+        });
+        this.logger.info(`${this.logPrefix} Connected using the ESPHome Native API.`);
+        return;
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        if (mode === 'native') {
+          this.logger.error(`${this.logPrefix} Cannot connect to the Native API (${reason}); retrying in 30 seconds.`);
+          setTimeout(() => void this.connect(), NATIVE_RETRY_MS);
+          return;
+        }
+        this.logger.info(`${this.logPrefix} Native API unavailable (${reason}); using the web server API instead.`);
+      }
     }
-    this.accessories.forEach(accessory => accessory.resetSyncState());
-    this.eventSource = new AutoReconnectingEventSource({
+    this.transport = new WebTransport({
       host: this.host,
       port: this.port,
-      user: this.user,
-      pass: this.pass,
+      user: this.configDevice.username,
+      pass: this.configDevice.password,
       logger: this.logger,
-      onStateUpdate: (stateEvent) => this.handleStateUpdate(stateEvent),
-      onLog: (logEvent) => this.handleLogUpdate(logEvent),
-      onPing: (pingEvent) => this.handlePingUpdate(pingEvent),
+      logPrefix: this.logPrefix,
+      handlers: this.handlers,
     });
+    // The web server doesn't count as a Native API client, so ESPHome's reboot timer still applies.
+    if (this.pluginConfig.enableNativeAPIHeartbeat) {
+      this.nativeAPIHeartbeat = new NativeAPIHeartbeat({
+        getHost: () => this.host,
+        login: this.pluginConfig.enableNativeAPIHeartbeatLogin ?? true,
+        logger: this.logger,
+        logPrefix: this.logPrefix,
+      });
+    }
   }
+
+  // Looked up per call: accessories can be created before connect() has stored the transport.
+  private readonly sendCommand = async (entityKeys: string[], command: EntityCommand) => {
+    if (!this.transport) {
+      this.logger.error(`${this.logPrefix} Not connected yet; dropping command`, command);
+      return;
+    }
+    await this.transport.command(entityKeys, command);
+  };
 
   public updateHostPort(host: string, port: number){
     const isChanged = host !== this.host || port !== this.port;
     this.host = host;
     this.port = port;
     if(isChanged){
-      this.reinitializeEventSource();
-      this.accessories.forEach(accessory => accessory.setAPIBaseURL(this.getAPIBaseURL()));
+      this.transport?.setHost(host, port);
       this.nativeAPIHeartbeat?.restart();
     }
   }
 
-  private possiblyFinalizeInit(){
-    if(!this.initialized && this.friendlyName && this.deviceMac){
-      this.logger.info(`[${this.configDevice.displayName}] [init] Publishing accessories with device model:`, this.friendlyName);
-      this.initAccessories({
-        friendlyName: this.friendlyName,
-        serialNumber: this.deviceMac,
-      });
-      this.initialized = true;
-      this.eventsBeforeAccessoryInit.forEach(oldEvent => {
-        const getFuncToCall = {
-          'ping': (accessory: BaseBlaQAccessoryInterface) => accessory.handlePingEvent?.bind(accessory),
-          'log': (accessory: BaseBlaQAccessoryInterface) => accessory.handleLogEvent?.bind(accessory),
-          'state': (accessory: BaseBlaQAccessoryInterface) => accessory.handleStateEvent?.bind(accessory),
-        }[oldEvent.type];
-        this.accessories.forEach(accessory => {
-          const funcToCall = getFuncToCall(accessory);
-          if(funcToCall){
-            funcToCall(oldEvent.event);
-          }
-        });
-      });
-      this.eventsBeforeAccessoryInit = [];
-      this.logger.debug(`[${this.configDevice.displayName}] [init] Accessories initialized!`);
+  private possiblyFinalizeInit({ model, mac }: DeviceIdentity){
+    if(this.initialized){
+      return;
+    }
+    this.logger.info(`${this.logPrefix} [init] Publishing accessories with device model:`, model);
+    this.initAccessories({ friendlyName: model, serialNumber: mac });
+    this.initialized = true;
+    for (const event of this.eventsBeforeAccessoryInit) {
+      this.dispatch(event);
+    }
+    this.eventsBeforeAccessoryInit = [];
+    this.logger.debug(`${this.logPrefix} [init] Accessories initialized!`);
+  }
+
+  private dispatch(event: BufferedEvent) {
+    for (const accessory of this.accessories) {
+      if (event.type === 'state') {
+        accessory.handleStateEvent(event.state);
+      } else {
+        accessory.handleLogEvent?.(event.line);
+      }
     }
   }
 
-  private handleStateUpdate(msg: StateUpdateMessageEvent){
+  private handleState(state: EntityState){
+    this.logger.debug(`${this.logPrefix} Processing state event:`, JSON.stringify(state));
     if(!this.initialized){
-      this.eventsBeforeAccessoryInit.push({ type: 'state', event: msg });
+      this.eventsBeforeAccessoryInit.push({ type: 'state', state });
+      return;
     }
-    if (!this.initialized && msg.data !== '' ) {
-      try {
-        const b = JSON.parse(msg.data) as BlaQTextSensorEvent;
-        if(isEntity(parseStateRecord(b), ENTITY_KEYS.deviceID)){
-          this.deviceMac = formatMAC(b.value);
-        }
-        this.possiblyFinalizeInit();
-      } catch (e) {
-        this.logger.debug(`[${this.configDevice.displayName}] [init] Got event:`, msg);
-        this.logger.debug(`[${this.configDevice.displayName}] [init] Got event data:`, msg.data);
-        this.logger.error(`[${this.configDevice.displayName}] [init] Cannot parse BlaQTextSensorEvent`, e);
-      }
-    }
-    this.logger.debug(`[${this.configDevice.displayName}] Processing state event:`, msg.data);
-    this.accessories.forEach(accessory => {
-      if(accessory.handleStateEvent){
-        accessory.handleStateEvent(msg);
-      }
-    });
+    this.dispatch({ type: 'state', state });
   }
 
-  private handleLogUpdate(msg: LogMessageEvent){
+  private handleLog(line: string){
+    this.logger.debug(`${this.logPrefix} GDO blaQ log:`, line);
     if(!this.initialized){
-      this.eventsBeforeAccessoryInit.push({ type: 'log', event: msg });
+      this.eventsBeforeAccessoryInit.push({ type: 'log', line });
+      return;
     }
-    this.logger.debug(`[${this.configDevice.displayName}] GDO blaQ log:`, stripAnsi(msg.data));
-    this.accessories.forEach(accessory => {
-      if(accessory.handleLogEvent){
-        accessory.handleLogEvent(msg);
-      }
-    });
+    this.dispatch({ type: 'log', line });
   }
 
   private initGarageDoorAccessory({ platform, accessory, friendlyName, serialNumber}: InitAccessoryParams){
     this.accessories.push(new BlaQGarageDoorAccessory({
-      platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(), type: this.pluginConfig.garageDoorType,
-      apiUser: this.user,
-      apiPass: this.pass,
+      platform, accessory, friendlyName, serialNumber, type: this.pluginConfig.garageDoorType,
+      sendCommand: this.sendCommand,
     }));
   }
 
   private initGarageLightAccessory({ platform, accessory, friendlyName, serialNumber}: InitAccessoryParams){
     if(this.pluginConfig.enableLight ?? true) {
       this.accessories.push(new BlaQGarageLightAccessory({
-        platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
-        apiUser: this.user,
-        apiPass: this.pass,
+        platform, accessory, friendlyName, serialNumber,
+        sendCommand: this.sendCommand,
       }));
     }
   }
@@ -198,9 +192,8 @@ export class BlaQHub {
   private initGarageLockAccessory({ platform, accessory, friendlyName, serialNumber}: InitAccessoryParams){
     if(this.pluginConfig.enableLockRemotes ?? true){
       this.accessories.push(new BlaQGarageLockAccessory({
-        platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
-        apiUser: this.user,
-        apiPass: this.pass,
+        platform, accessory, friendlyName, serialNumber,
+        sendCommand: this.sendCommand,
       }));
     }
   }
@@ -208,9 +201,8 @@ export class BlaQHub {
   private initGarageMotionSensorAccessory({ platform, accessory, friendlyName, serialNumber}: InitAccessoryParams){
     if(this.pluginConfig.enableMotionSensor ?? true){
       this.accessories.push(new BlaQGarageMotionSensorAccessory({
-        platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
-        apiUser: this.user,
-        apiPass: this.pass,
+        platform, accessory, friendlyName, serialNumber,
+        sendCommand: this.sendCommand,
       }));
     }
   }
@@ -218,9 +210,8 @@ export class BlaQHub {
   private initGaragePreCloseWarningAccessory({ platform, accessory, friendlyName, serialNumber}: InitAccessoryParams){
     if(this.pluginConfig.enablePreCloseWarning ?? true){
       this.accessories.push(new BlaQGaragePreCloseWarningAccessory({
-        platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
-        apiUser: this.user,
-        apiPass: this.pass,
+        platform, accessory, friendlyName, serialNumber,
+        sendCommand: this.sendCommand,
       }));
     }
   }
@@ -228,9 +219,8 @@ export class BlaQHub {
   private initGarageLearnModeAccessory({ platform, accessory, friendlyName, serialNumber}: InitAccessoryParams){
     if(this.pluginConfig.enableLearnMode ?? true){
       this.accessories.push(new BlaQGarageLearnModeAccessory({
-        platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
-        apiUser: this.user,
-        apiPass: this.pass,
+        platform, accessory, friendlyName, serialNumber,
+        sendCommand: this.sendCommand,
       }));
     }
   }
@@ -238,9 +228,8 @@ export class BlaQHub {
   private initGarageObstructionSensorAccessory({ platform, accessory, friendlyName, serialNumber}: InitAccessoryParams){
     if(this.pluginConfig.enableSeparateObstructionSensor ?? true){
       this.accessories.push(new BlaQGarageObstructionSensorAccessory({
-        platform, accessory, friendlyName, serialNumber, apiBaseURL: this.getAPIBaseURL(),
-        apiUser: this.user,
-        apiPass: this.pass,
+        platform, accessory, friendlyName, serialNumber,
+        sendCommand: this.sendCommand,
       }));
     }
   }
@@ -258,27 +247,5 @@ export class BlaQHub {
     this.initGaragePreCloseWarningAccessory({ platform, accessory, friendlyName, serialNumber });
     this.initGarageLearnModeAccessory({ platform, accessory, friendlyName, serialNumber });
     this.initGarageObstructionSensorAccessory({ platform, accessory, friendlyName, serialNumber });
-  }
-
-  private handlePingUpdate(msg: PingMessageEvent){
-    if(!this.initialized){
-      this.eventsBeforeAccessoryInit.push({ type: 'ping', event: msg });
-    }
-    if (!this.initialized && msg.data !== '' ) {
-      try {
-        const b = JSON.parse(msg.data) as BlaQPingEvent;
-        this.friendlyName = b.title;
-        this.possiblyFinalizeInit();
-      } catch (e) {
-        this.logger.debug(`[${this.configDevice.displayName}] [init] Got event:`, msg);
-        this.logger.debug(`[${this.configDevice.displayName}] [init] Got event data:`, msg.data);
-        this.logger.error(`[${this.configDevice.displayName}] [init] Cannot parse BlaQPingEvent`, e);
-      }
-    }
-    this.accessories.forEach(accessory => {
-      if(accessory.handleLogEvent){
-        accessory.handleLogEvent(msg);
-      }
-    });
   }
 }

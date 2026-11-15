@@ -1,58 +1,30 @@
 import { CharacteristicValue, Logger, PlatformAccessory, Service, WithUUID } from 'homebridge';
-import fetch from 'node-fetch'; // I am, in fact, trying to make fetch happen.
-import { LogMessageEvent, PingMessageEvent, StateUpdateMessageEvent, StateUpdateRecord } from '../utils/eventsource';
 import { BlaQHomebridgePluginPlatform } from '../platform';
-import { BlaQTextSensorEvent } from '../types';
-import {
-  ENTITY_KEYS,
-  buildEntityPathCandidates,
-  isEntity,
-  parseStateRecord,
-} from '../utils/entity-ids.js';
-import type { RequestInfo, RequestInit, Response } from 'node-fetch';
+import { ENTITY_KEYS } from '../utils/entity-ids.js';
+import { EntityCommand, EntityState } from '../transport/types.js';
+
+export type SendCommand = (entityKeys: string[], command: EntityCommand) => Promise<void>;
 
 export interface BaseBlaQAccessoryInterface {
-    setAPIBaseURL: (apiBaseURL: string) => void;
-    handleStateEvent: (stateEvent: StateUpdateMessageEvent) => void;
-    handleLogEvent?: (logEvent: LogMessageEvent) => void;
-    handlePingEvent?: (pingEvent: PingMessageEvent) => void;
+    handleStateEvent: (state: EntityState) => void;
+    handleLogEvent?: (line: string) => void;
     resetSyncState: () => void;
 }
 
 export type BaseBlaQAccessoryConstructorParams = {
     accessory: PlatformAccessory;
-    apiBaseURL: string;
-    apiUser?: string;
-    apiPass?: string;
+    sendCommand: SendCommand;
     friendlyName: string;
     platform: BlaQHomebridgePluginPlatform;
     serialNumber: string;
 };
 
-export const correctAPIBaseURL = (inputURL: string) => {
-  let correctedAPIBaseURL = inputURL;
-  if(!correctedAPIBaseURL.includes('://')){
-    correctedAPIBaseURL = `http://${correctedAPIBaseURL}`;
-  }
-  if(correctedAPIBaseURL.endsWith('/')){
-    correctedAPIBaseURL = correctedAPIBaseURL.slice(0, -1);
-  }
-  return correctedAPIBaseURL;
-};
-
 export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
-  protected apiBaseURL: string;
-  protected user?: string;
-  protected pass?: string;
   protected firmwareVersion?: string;
   protected synced?: boolean;
-  protected queuedEvents: {
-    type: 'state' | 'log' | 'ping';
-    event: StateUpdateMessageEvent | LogMessageEvent | PingMessageEvent;
-  }[] = [];
+  protected queuedEvents: ({ type: 'state'; state: EntityState } | { type: 'log'; line: string })[] = [];
+  protected readonly sendCommand: SendCommand;
 
-  /** Legacy entity key -> REST path that this device is known to accept. */
-  private readonly entityPaths: Map<string, string> = new Map();
 
   protected readonly accessory: PlatformAccessory;
   protected readonly accessoryInformationService: Service;
@@ -63,9 +35,7 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
 
   constructor({
     accessory,
-    apiBaseURL,
-    apiUser,
-    apiPass,
+    sendCommand,
     friendlyName,
     platform,
     serialNumber,
@@ -76,9 +46,7 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
     this.accessory = accessory;
     this.friendlyName = friendlyName;
     this.serialNumber = serialNumber;
-    this.apiBaseURL = correctAPIBaseURL(apiBaseURL);
-    this.user = apiUser;
-    this.pass = apiPass;
+    this.sendCommand = sendCommand;
     this.accessoryInformationService = this.getOrAddService(this.platform.service.AccessoryInformation);
     // set accessory information
     this.accessoryInformationService
@@ -112,13 +80,10 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
   processQueuedEvents() {
     while(this.queuedEvents.length){
       const event = this.queuedEvents.shift()!;
-      const funcToCall = {
-        'ping': (this as BaseBlaQAccessoryInterface).handlePingEvent?.bind(this),
-        'log': (this as BaseBlaQAccessoryInterface).handleLogEvent?.bind(this),
-        'state': (this as BaseBlaQAccessoryInterface).handleStateEvent?.bind(this),
-      }[event.type];
-      if(funcToCall){
-        funcToCall(event.event);
+      if(event.type === 'state'){
+        this.handleStateEvent(event.state);
+      }else{
+        this.handleLogEvent(event.line);
       }
     }
   }
@@ -127,45 +92,22 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
     this.synced = false;
   }
 
-  handlePingEvent(pingEvent: PingMessageEvent){
+  handleLogEvent(line: string){
     if(!this.synced){
-      this.queuedEvents.push({type: 'ping', event: pingEvent});
+      this.queuedEvents.push({type: 'log', line});
     }
   }
 
-  handleLogEvent(logEvent: LogMessageEvent){
-    if(!this.synced){
-      this.queuedEvents.push({type: 'log', event: logEvent});
-    }
-  }
-
-  handleStateEvent(stateEvent: StateUpdateMessageEvent): void {
-    try {
-      const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
-      const entity = parseStateRecord(stateInfo);
-      if (entity) {
-        // The device is the source of truth for its own URLs, so remember what it told us.
-        this.entityPaths.set(entity.key, entity.path);
+  handleStateEvent(state: EntityState): void {
+    if (state.type === 'onoff' && ENTITY_KEYS.synced.includes(state.key)) {
+      this.synced = state.on;
+      if(this.synced){
+        this.processQueuedEvents();
       }
-      if (isEntity(entity, ENTITY_KEYS.synced)) {
-        this.synced = stateInfo.value as boolean | undefined;
-        if(this.synced){
-          this.processQueuedEvents();
-        }
-      }else if (isEntity(entity, ENTITY_KEYS.firmwareVersion)) {
-        const b = stateInfo as BlaQTextSensorEvent;
-        if (b.value && b.value === b.state) {
-          this.setFirmwareVersion(b.value);
-        } else {
-          this.logger.error('Mismatched firmware versions in value/state:', b.value, b.state);
-          this.firmwareVersion = undefined;
-        }
-      } else if(!this.synced){
-        this.queuedEvents.push({type: 'state', event: stateEvent});
-      }
-    } catch(e) {
-      this.logger.error('Cannot deserialize message:', stateEvent);
-      this.logger.error('Deserialization yielded:', e);
+    } else if (state.type === 'text' && ENTITY_KEYS.firmwareVersion.includes(state.key)) {
+      this.setFirmwareVersion(state.value);
+    } else if(!this.synced){
+      this.queuedEvents.push({type: 'state', state});
     }
   }
 
@@ -179,46 +121,5 @@ export class BaseBlaQAccessory implements BaseBlaQAccessoryInterface {
       this.platform.characteristic.FirmwareRevision,
       version,
     );
-  }
-
-  setAPIBaseURL(url: string){
-    this.apiBaseURL = correctAPIBaseURL(url);
-  }
-
-  /**
-   * POSTs an action to an entity, falling back through the known URL formats on a 404 so that the
-   * same code works against firmware from either side of the ESPHome 2026.7 URL change, and
-   * regardless of which spelling of the entity's object_id the device settled on.
-   */
-  protected async entityFetch(entityKeys: string[], action?: string, query?: string): Promise<Response | undefined> {
-    const suffix = `${action ? `/${action}` : ''}${query ? `?${query}` : ''}`;
-    const candidates = buildEntityPathCandidates(entityKeys, this.entityPaths);
-    let response: Response | undefined;
-    for(const path of candidates){
-      response = await this.authFetch(`${this.apiBaseURL}${path}${suffix}`, {method: 'POST'});
-      if(response.status !== 404){
-        this.entityPaths.set(entityKeys[0], path); // skip straight to this one next time
-        return response;
-      }
-      this.logger.debug(`Got a 404 for ${path}${suffix}; trying the next known URL format...`);
-    }
-    if(!response){
-      this.logger.error(`Cannot build a URL for unrecognized entity: ${entityKeys.join(', ')}`);
-    }else{
-      this.logger.error(`No known URL format worked for ${entityKeys[0]}; tried: ${candidates.join(', ')}`);
-    }
-    return response;
-  }
-
-  protected authFetch(url: URL | RequestInfo, init?: RequestInit){
-    const newInit = init || {};
-    const basicCreds = `${this.user}:${this.pass}`;
-    newInit['headers'] = {
-      ...newInit['headers'],
-      ...(this.user && this.pass ? {
-        'Authorization': `Basic ${Buffer.from(basicCreds).toString('base64')}`,
-      } : {}),
-    };
-    return fetch(url, newInit);
   }
 }

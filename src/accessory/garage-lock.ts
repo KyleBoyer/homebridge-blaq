@@ -1,10 +1,7 @@
 import { CharacteristicValue, Service } from 'homebridge';
 
-import {
-  BlaQButtonEvent,
-} from '../types.js';
-import { ENTITY_KEYS, isEntity, parseStateRecord } from '../utils/entity-ids.js';
-import { LogMessageEvent, StateUpdateMessageEvent, StateUpdateRecord } from '../utils/eventsource.js';
+import { ENTITY_KEYS } from '../utils/entity-ids.js';
+import { EntityState } from '../transport/types.js';
 import { BaseBlaQAccessory, BaseBlaQAccessoryConstructorParams } from './base.js';
 
 export const label = 'Lock Remotes';
@@ -59,39 +56,27 @@ export class BlaQGarageLockAccessory extends BaseBlaQAccessory {
 
   private async changeLockState(target: CharacteristicValue){
     const lockDesired = target === this.platform.characteristic.LockTargetState.SECURED;
-    const apiTarget: string = lockDesired ? 'lock' : 'unlock';
+    const action = lockDesired ? 'lock' : 'unlock';
     if(lockDesired !== this.isLocked){
-      await this.entityFetch(ENTITY_KEYS.lock, apiTarget);
+      await this.sendCommand(ENTITY_KEYS.lock, { action });
     }
   }
 
-  handleStateEvent(stateEvent: StateUpdateMessageEvent){
-    super.handleStateEvent(stateEvent);
+  handleStateEvent(state: EntityState){
+    super.handleStateEvent(state);
+    if(this.synced && state.type === 'lock' && ENTITY_KEYS.lock.includes(state.key)
+      && (state.lock === 'SECURED' || state.lock === 'UNSECURED')){
+      this.setLockState(state.lock === 'SECURED');
+    }
+  }
+
+  handleLogEvent(line: string){
+    super.handleLogEvent(line);
     if(!this.synced){
       return;
     }
     try {
-      const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
-      const entity = parseStateRecord(stateInfo);
-      if (isEntity(entity, ENTITY_KEYS.lock)) {
-        const buttonEvent = stateInfo as BlaQButtonEvent & { state?: 'ON' | 'OFF' };
-        if(['UNLOCKED', 'LOCKED'].includes(buttonEvent.state?.toUpperCase() || '')){
-          this.setLockState(buttonEvent.state?.toUpperCase() === 'LOCKED');
-        }
-      }
-    } catch(e) {
-      this.logger.error('Cannot deserialize message:', stateEvent);
-      this.logger.error('Deserialization yielded:', e);
-    }
-  }
-
-  handleLogEvent(logEvent: LogMessageEvent){
-    super.handleLogEvent(logEvent);
-    if(!this.synced){
-      return;
-    }
-    try {
-      const logStr = logEvent.data;
+      const logStr = line;
       const lowercaseLogStr = logStr.toLowerCase();
       if (lowercaseLogStr.includes('lock') && lowercaseLogStr.includes('state') && lowercaseLogStr.includes('unlocked')) {
         this.setLockState(false);

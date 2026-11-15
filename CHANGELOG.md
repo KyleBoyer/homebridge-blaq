@@ -8,6 +8,27 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Entries up to and including 0.4.1 were backfilled from the [GitHub releases][releases]; the
 release notes remain the canonical record for those versions.
 
+## [0.5.0] - 2026-11-15
+
+### Added
+
+- **ESPHome Native API support.** The plugin now talks to the GDO blaQ over ESPHome's Native API
+  (port 6053) when the device allows it: one persistent connection for state, device logs, and
+  commands. A Native API connection also stops ESPHome's automatic reboot every 15 minutes, with
+  no heartbeat needed.
+- **Connection method** setting: `auto` (default) uses the Native API and falls back to the web
+  server API (REST + `/events`) when the Native API isn't available. `native` and `web` force one.
+- Optional per-device **Native API Encryption Key**, for firmware built with one. Stock GDO blaQ
+  firmware doesn't use one.
+
+### Changed
+
+- **Requires Node.js 22.20 or newer.** Node.js 20 reached end of life in April 2026, and the
+  Native API client library needs 22.20+.
+- The **Native API heartbeat** settings now only apply when connected through the web server API.
+- The **Username** and **Password** settings are now labeled as web server credentials, which is
+  what they always were.
+
 ## [0.4.2] - 2026-11-15
 
 ### Added
@@ -342,6 +363,7 @@ Initial release.
 [#11]: https://github.com/KyleBoyer/homebridge-blaq/issues/11
 [#12]: https://github.com/KyleBoyer/homebridge-blaq/issues/12
 
+[0.5.0]: https://github.com/KyleBoyer/homebridge-blaq/compare/V0.4.2...V0.5.0
 [0.4.2]: https://github.com/KyleBoyer/homebridge-blaq/compare/V0.4.1...V0.4.2
 [0.4.1]: https://github.com/KyleBoyer/homebridge-blaq/compare/V0.4.0...V0.4.1
 [0.4.0]: https://github.com/KyleBoyer/homebridge-blaq/compare/0.3.0...V0.4.0

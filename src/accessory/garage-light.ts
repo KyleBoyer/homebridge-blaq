@@ -1,10 +1,7 @@
 import { CharacteristicValue, Service } from 'homebridge';
 
-import {
-  BlaQButtonEvent,
-} from '../types.js';
-import { ENTITY_KEYS, isEntity, parseStateRecord } from '../utils/entity-ids.js';
-import { LogMessageEvent, StateUpdateMessageEvent, StateUpdateRecord } from '../utils/eventsource.js';
+import { ENTITY_KEYS } from '../utils/entity-ids.js';
+import { EntityState } from '../transport/types.js';
 import { BaseBlaQAccessory, BaseBlaQAccessoryConstructorParams } from './base.js';
 
 export const label = 'Light';
@@ -46,39 +43,26 @@ export class BlaQGarageLightAccessory extends BaseBlaQAccessory {
   }
 
   private async changePowerState(target: CharacteristicValue){
-    const apiTarget: string = target ? 'turn_on' : 'turn_off';
+    const action = target ? 'turn_on' : 'turn_off';
     if(target !== this.isOn){
-      await this.entityFetch(ENTITY_KEYS.light, apiTarget);
+      await this.sendCommand(ENTITY_KEYS.light, { action });
     }
   }
 
-  handleStateEvent(stateEvent: StateUpdateMessageEvent){
-    super.handleStateEvent(stateEvent);
+  handleStateEvent(state: EntityState){
+    super.handleStateEvent(state);
+    if(this.synced && state.type === 'onoff' && ENTITY_KEYS.light.includes(state.key)){
+      this.setPowerState(state.on);
+    }
+  }
+
+  handleLogEvent(line: string){
+    super.handleLogEvent(line);
     if(!this.synced){
       return;
     }
     try {
-      const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
-      const entity = parseStateRecord(stateInfo);
-      if (isEntity(entity, ENTITY_KEYS.light)) {
-        const buttonEvent = stateInfo as BlaQButtonEvent & { state?: 'ON' | 'OFF' };
-        if(['OFF', 'ON'].includes(buttonEvent.state?.toUpperCase() || '')){
-          this.setPowerState(buttonEvent.state?.toUpperCase() === 'ON');
-        }
-      }
-    } catch(e) {
-      this.logger.error('Cannot deserialize message:', stateEvent);
-      this.logger.error('Deserialization yielded:', e);
-    }
-  }
-
-  handleLogEvent(logEvent: LogMessageEvent){
-    super.handleLogEvent(logEvent);
-    if(!this.synced){
-      return;
-    }
-    try {
-      const logStr = logEvent.data;
+      const logStr = line;
       const lowercaseLogStr = logStr.toLowerCase();
       if (lowercaseLogStr.includes('light') && lowercaseLogStr.includes('state') && lowercaseLogStr.includes('on')) {
         this.setPowerState(true);

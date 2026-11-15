@@ -67,7 +67,12 @@ The `mac` field is optional, but is quite helpful if provided - this field is us
 
 ### Implementation
 
-GDO blaQ devices expose a [real-time event source API](https://esphome.io/web-api/index.html?highlight=events#event-source-api) as `/events`. This allows the plugin to stay up to date with no lag. The plugin caches the most recent status we've received for each accessory, enabling immediate replies to any status checks. For controlling, the GDO blaQ devices have a [REST API](https://konnected.readme.io/v2.0/reference/introduction) that is automatically enabled. Therefore, this plugin uses the API routes exposed for sending commands to control different accessories.
+GDO blaQ devices run [ESPHome](https://esphome.io) firmware, which offers two local APIs. By default (`"connectionType": "auto"`), the plugin uses the [ESPHome Native API](https://esphome.io/components/api/) when the device allows it, and falls back to the web server API otherwise. Set `connectionType` to `native` or `web` to force one.
+
+* **Native API** (port 6053): a persistent connection that pushes every state change and device log line. Being connected also stops ESPHome's automatic reboot every 15 minutes when no Native API client is connected. If your firmware sets an API encryption key, add it to the device as `encryptionKey`.
+* **Web server API** (port 80): a [real-time event stream](https://esphome.io/web-api/#event-source-api) at `/events` for state, plus a [REST API](https://konnected.readme.io/v2.0/reference/introduction) for commands. When connected this way, the **Native API heartbeat** setting keeps the device from rebooting every 15 minutes. Turn the heartbeat off if the Native API is disabled in your firmware.
+
+Either way, the plugin caches the most recent status it has received for each accessory, so it can answer status checks immediately.
 
 ### Legal
 

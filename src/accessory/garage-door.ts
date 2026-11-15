@@ -1,15 +1,12 @@
 import { CharacteristicValue, Service } from 'homebridge';
 
 import {
-  BlaQBinarySensorEvent,
-  BlaQCoverDoorEvent,
-  BlaQLockEvent,
   CurrentOperationType,
   LockStateType,
   OpenClosedStateType,
 } from '../types.js';
-import { ENTITY_KEYS, isEntity, parseStateRecord } from '../utils/entity-ids.js';
-import { LogMessageEvent, StateUpdateMessageEvent, StateUpdateRecord } from '../utils/eventsource.js';
+import { ENTITY_KEYS } from '../utils/entity-ids.js';
+import { EntityState } from '../transport/types.js';
 import { BaseBlaQAccessory, BaseBlaQAccessoryConstructorParams } from './base.js';
 
 type BlaQGarageDoorAccessoryConstructorParams = BaseBlaQAccessoryConstructorParams & {
@@ -79,10 +76,10 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
 
   private async updateLockState(lockState: CharacteristicValue){
     const lockDesired = lockState === this.platform.characteristic.LockTargetState.SECURED;
-    const apiTarget: string = lockDesired ? 'lock' : 'unlock';
+    const action = lockDesired ? 'lock' : 'unlock';
     const currentlyLocked = this.getLockState() === this.platform.characteristic.LockCurrentState.SECURED;
     if(lockDesired !== currentlyLocked){
-      await this.entityFetch(ENTITY_KEYS.lock, apiTarget);
+      await this.sendCommand(ENTITY_KEYS.lock, { action });
     }
   }
 
@@ -257,23 +254,23 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
   private async setHoldPositionState(target: CharacteristicValue){
     const shouldHold = target;
     if(shouldHold){
-      await this.entityFetch(ENTITY_KEYS.cover, 'stop');
+      await this.sendCommand(ENTITY_KEYS.cover, { action: 'stop' });
     }
   }
 
   private async setTargetDoorState(target: CharacteristicValue){
-    let apiTarget: string;
+    let action: 'open' | 'close';
     if (target === this.platform.characteristic.TargetDoorState.CLOSED) {
-      apiTarget = 'close';
+      action = 'close';
       this.targetPosition = 0;
     } else if (target === this.platform.characteristic.TargetDoorState.OPEN) {
       this.targetPosition = 100;
-      apiTarget = 'open';
+      action = 'open';
     } else {
       throw new Error(`Invalid target door state: ${target}`);
     }
     this.updateCurrentDoorState();
-    await this.entityFetch(ENTITY_KEYS.cover, apiTarget);
+    await this.sendCommand(ENTITY_KEYS.cover, { action });
   }
 
   getTargetDoorPosition(): CharacteristicValue {
@@ -305,7 +302,7 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
     }
     this.updateCurrentDoorState();
     if(this.position !== roundedTarget){
-      await this.entityFetch(ENTITY_KEYS.cover, 'set', `position=${roundedTarget / 100}`);
+      await this.sendCommand(ENTITY_KEYS.cover, { action: 'set_position', position: roundedTarget / 100 });
     }
   }
 
@@ -332,50 +329,33 @@ export class BlaQGarageDoorAccessory extends BaseBlaQAccessory {
     );
   }
 
-  handleStateEvent(stateEvent: StateUpdateMessageEvent){
-    super.handleStateEvent(stateEvent);
+  handleStateEvent(state: EntityState){
+    super.handleStateEvent(state);
     if(!this.synced){
       return;
     }
-    try {
-      const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
-      const entity = parseStateRecord(stateInfo);
-      if (isEntity(entity, ENTITY_KEYS.cover)) {
-        const doorEvent = stateInfo as BlaQCoverDoorEvent;
-        this.setCurrentDoorState(doorEvent.state);
-        this.setCurrentOperation(doorEvent.current_operation);
-        const curPos = Math.round(doorEvent.position * 100);
-        if(doorEvent.current_operation === 'IDLE'){
-          this.setTargetDoorPosition(curPos);
-        }
-        this.setCurrentPosition(curPos);
-      } else if (isEntity(entity, ENTITY_KEYS.obstruction)) {
-        const binarySensorEvent = stateInfo as BlaQBinarySensorEvent;
-        this.setObstructed(binarySensorEvent.value);
-      } else if (isEntity(entity, ENTITY_KEYS.lock)) {
-        const b = stateInfo as BlaQLockEvent;
-        const lockStateMap: Record<string, LockStateType> = {
-          'LOCKED': 'SECURED',
-          'SECURED': 'SECURED',
-          'UNLOCKED': 'UNSECURED',
-          'UNSECURED': 'UNSECURED',
-        };
-        const selectedLockState = lockStateMap[b.state] || 'UNKNOWN';
-        this.setLockState(selectedLockState);
+    if (state.type === 'cover' && ENTITY_KEYS.cover.includes(state.key)) {
+      const curPos = Math.round(state.position * 100);
+      this.setCurrentDoorState(curPos > 0 ? 'OPEN' : 'CLOSED');
+      this.setCurrentOperation(state.operation);
+      if(state.operation === 'IDLE'){
+        this.setTargetDoorPosition(curPos);
       }
-    } catch(e) {
-      this.logger.error('Cannot deserialize message:', stateEvent);
-      this.logger.error('Deserialization yielded:', e);
+      this.setCurrentPosition(curPos);
+    } else if (state.type === 'onoff' && ENTITY_KEYS.obstruction.includes(state.key)) {
+      this.setObstructed(state.on);
+    } else if (state.type === 'lock' && ENTITY_KEYS.lock.includes(state.key)) {
+      this.setLockState(state.lock);
     }
   }
 
-  handleLogEvent(logEvent: LogMessageEvent){
-    super.handleLogEvent(logEvent);
+  handleLogEvent(line: string){
+    super.handleLogEvent(line);
     if(!this.synced){
       return;
     }
     try {
-      const logStr = logEvent.data;
+      const logStr = line;
       const lowercaseLogStr = logStr.toLowerCase();
       if (lowercaseLogStr.includes('door') && lowercaseLogStr.includes('state') && lowercaseLogStr.includes('opening')) {
         this.setCurrentOperation('OPENING');

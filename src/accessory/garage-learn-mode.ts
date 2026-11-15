@@ -1,10 +1,7 @@
 import { CharacteristicValue, Service } from 'homebridge';
 
-import {
-  BlaQButtonEvent,
-} from '../types.js';
-import { ENTITY_KEYS, isEntity, parseStateRecord } from '../utils/entity-ids.js';
-import { LogMessageEvent, StateUpdateMessageEvent, StateUpdateRecord } from '../utils/eventsource.js';
+import { ENTITY_KEYS } from '../utils/entity-ids.js';
+import { EntityState } from '../transport/types.js';
 import { BaseBlaQAccessory, BaseBlaQAccessoryConstructorParams } from './base.js';
 
 export const label = 'Learn/Pair Mode';
@@ -45,38 +42,26 @@ export class BlaQGarageLearnModeAccessory extends BaseBlaQAccessory {
   }
 
   private async changeIsOn(target: CharacteristicValue){
-    const apiTarget: string = target ? 'turn_on' : 'turn_off';
+    const action = target ? 'turn_on' : 'turn_off';
     if(target !== this.isOn){ // only call the API when target = true (button on)
-      await this.entityFetch(ENTITY_KEYS.learnMode, apiTarget);
+      await this.sendCommand(ENTITY_KEYS.learnMode, { action });
     }
   }
 
-  handleStateEvent(stateEvent: StateUpdateMessageEvent){
-    super.handleStateEvent(stateEvent);
+  handleStateEvent(state: EntityState){
+    super.handleStateEvent(state);
+    if(this.synced && state.type === 'onoff' && ENTITY_KEYS.learnMode.includes(state.key)){
+      this.setIsOn(state.on);
+    }
+  }
+
+  handleLogEvent(line: string){
+    super.handleLogEvent(line);
     if(!this.synced){
       return;
     }
     try {
-      const stateInfo = JSON.parse(stateEvent.data) as StateUpdateRecord;
-      if (isEntity(parseStateRecord(stateInfo), ENTITY_KEYS.learnMode)) {
-        const buttonEvent = stateInfo as BlaQButtonEvent & { state?: 'ON' | 'OFF' };
-        if(['OFF', 'ON'].includes(buttonEvent.state?.toUpperCase() || '')){
-          this.setIsOn(buttonEvent.state?.toUpperCase() === 'ON');
-        }
-      }
-    } catch(e) {
-      this.logger.error('Cannot deserialize message:', stateEvent);
-      this.logger.error('Deserialization yielded:', e);
-    }
-  }
-
-  handleLogEvent(logEvent: LogMessageEvent){
-    super.handleLogEvent(logEvent);
-    if(!this.synced){
-      return;
-    }
-    try {
-      const logStr = logEvent.data;
+      const logStr = line;
       const lowercaseLogStr = logStr.toLowerCase();
       const learnTurningOn =
         lowercaseLogStr.includes('learn') &&

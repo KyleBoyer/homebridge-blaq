@@ -52,24 +52,41 @@
             },
             "username": {
               "title": "(Optional) Username",
-              "description": "Username to access the Native API",
+              "description": "Username for the web server API, if your firmware requires one",
               "type": "string",
               "required": false,
               "placeholder": "abc123"
             },
             "password": {
               "title": "(Optional) Password",
-              "description": "Password to access the Native API",
+              "description": "Password for the web server API, if your firmware requires one",
               "type": "string",
               "required": false,
               "placeholder": "xyz456"
+            },
+            "encryptionKey": {
+              "title": "(Optional) Native API Encryption Key",
+              "description": "Only needed if your firmware sets an ESPHome Native API encryption key. Stock GDO blaQ firmware doesn't.",
+              "type": "string",
+              "required": false
             }
           }
         }
       },
+      "connectionType": {
+        "title": "Connection method",
+        "description": "Auto uses the ESPHome Native API when the device allows it and falls back to the web server API.",
+        "type": "string",
+        "default": "auto",
+        "oneOf": [
+          { "title": "Auto (Native API, falling back to web server)", "enum": ["auto"] },
+          { "title": "ESPHome Native API only", "enum": ["native"] },
+          { "title": "Web server API only (REST + events)", "enum": ["web"] }
+        ]
+      },
       "enableNativeAPIHeartbeat": {
         "title": "Prevent random restarts by performing a heartbeat on the Native API",
-        "description": "ESPHome reboots the GDO blaQ every 15 minutes when no Native API client is connected. Turn this off if the Native API is disabled in your firmware.",
+        "description": "Only applies when connected through the web server API. ESPHome reboots the GDO blaQ every 15 minutes when no Native API client is connected. Turn this off if the Native API is disabled in your firmware.",
         "type": "boolean",
         "default": true
       },
