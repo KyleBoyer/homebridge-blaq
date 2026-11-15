@@ -1,7 +1,6 @@
 import { AutoReconnectingEventSource, LogMessageEvent, PingMessageEvent, StateUpdateMessageEvent } from './utils/eventsource.js';
 import { Logger, PlatformAccessory, PlatformConfig } from 'homebridge';
 import stripAnsi from 'strip-ansi';
-import { createConnection } from 'net';
 import { BlaQTextSensorEvent, ConfigDevice } from './types.js';
 import { BaseBlaQAccessoryInterface } from './accessory/base.js';
 import { BlaQHomebridgePluginPlatform } from './platform.js';
@@ -13,6 +12,7 @@ import { BlaQGaragePreCloseWarningAccessory } from './accessory/garage-pre-close
 import { BlaQGarageLearnModeAccessory } from './accessory/garage-learn-mode.js';
 import { BlaQGarageObstructionSensorAccessory } from './accessory/garage-obstruction-sensor.js';
 import { formatMAC } from './utils/formatters.js';
+import { NativeAPIHeartbeat } from './utils/native-api-heartbeat.js';
 import { ENTITY_KEYS, isEntity, parseStateRecord } from './utils/entity-ids.js';
 
 interface BlaQPingEvent {
@@ -41,6 +41,7 @@ export type BlaQInitAccessoryCallback = (configDevice: ConfigDevice, Model: stri
 export class BlaQHub {
   private accessories: BaseBlaQAccessoryInterface[] = [];
   private eventSource?: AutoReconnectingEventSource;
+  private nativeAPIHeartbeat?: NativeAPIHeartbeat;
   private host: string;
   private initialized = false;
   private friendlyName?: string;
@@ -71,9 +72,12 @@ export class BlaQHub {
     this.logger = logger;
     this.reinitializeEventSource();
     if(pluginConfig.enableNativeAPIHeartbeat){
-      setInterval(() => {
-        this.performNativeAPIHeartbeat();
-      }, 5 * 60 * 1000);
+      this.nativeAPIHeartbeat = new NativeAPIHeartbeat({
+        getHost: () => this.host,
+        login: pluginConfig.enableNativeAPIHeartbeatLogin ?? true,
+        logger,
+        logPrefix: `[${configDevice.displayName}]`,
+      });
     }
     logger.debug('Initialized BlaQHub!');
   }
@@ -106,21 +110,8 @@ export class BlaQHub {
     if(isChanged){
       this.reinitializeEventSource();
       this.accessories.forEach(accessory => accessory.setAPIBaseURL(this.getAPIBaseURL()));
+      this.nativeAPIHeartbeat?.restart();
     }
-  }
-
-  public performNativeAPIHeartbeat() {
-    const socket = createConnection(
-      {host: this.host, port: 6053},
-      (
-        () => setTimeout(
-          () => {
-            socket.destroy();
-          },
-          5 * 1000,
-        )
-      ),
-    );
   }
 
   private possiblyFinalizeInit(){

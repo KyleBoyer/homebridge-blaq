@@ -8,6 +8,27 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Entries up to and including 0.4.1 were backfilled from the [GitHub releases][releases]; the
 release notes remain the canonical record for those versions.
 
+## [0.4.2] - 2026-11-15
+
+### Added
+
+- **Log in to the Native API during the heartbeat** setting (on by default). Starting with
+  ESPHome 2026.10, the GDO blaQ only counts a logged-in Native API client as connected, so the old
+  connect-only heartbeat no longer stopped the reboot every 15 minutes. The heartbeat now keeps a
+  real, logged-in session open. Turn the setting off to go back to the connect-only heartbeat.
+  The Native API heartbeat setting is still the main on/off switch.
+
+### Fixed
+
+- Homebridge no longer crashes when the Native API heartbeat can't reach port 6053, e.g. when the
+  Native API is disabled in the GDO blaQ firmware. The plugin now logs one warning that suggests
+  turning the heartbeat off ([#12]).
+- The garage door now shows the **Display Name** from the plugin config in the Home app instead of
+  the device's own name (e.g. "GDO blaQ e2e0e4"). A name typed in the config also takes priority
+  over the name found by auto-discovery ([#10]).
+- "EventSource got error" is now a warning, not an error, when the connection drops after it was
+  working, such as when the device reboots. The plugin reconnects on its own ([#11]).
+
 ## [0.4.1] - 2026-08-20
 
 ### Fixed
@@ -317,7 +338,11 @@ Initial release.
 [discovery]: https://konnected.readme.io/reference/endpoint-discovery-pattern
 [#2]: https://github.com/KyleBoyer/homebridge-blaq/issues/2
 [#9]: https://github.com/KyleBoyer/homebridge-blaq/pull/9
+[#10]: https://github.com/KyleBoyer/homebridge-blaq/issues/10
+[#11]: https://github.com/KyleBoyer/homebridge-blaq/issues/11
+[#12]: https://github.com/KyleBoyer/homebridge-blaq/issues/12
 
+[0.4.2]: https://github.com/KyleBoyer/homebridge-blaq/compare/V0.4.1...V0.4.2
 [0.4.1]: https://github.com/KyleBoyer/homebridge-blaq/compare/V0.4.0...V0.4.1
 [0.4.0]: https://github.com/KyleBoyer/homebridge-blaq/compare/0.3.0...V0.4.0
 [0.3.0]: https://github.com/KyleBoyer/homebridge-blaq/compare/0.2.37...0.3.0

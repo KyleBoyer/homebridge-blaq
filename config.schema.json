@@ -69,8 +69,18 @@
       },
       "enableNativeAPIHeartbeat": {
         "title": "Prevent random restarts by performing a heartbeat on the Native API",
+        "description": "ESPHome reboots the GDO blaQ every 15 minutes when no Native API client is connected. Turn this off if the Native API is disabled in your firmware.",
         "type": "boolean",
         "default": true
+      },
+      "enableNativeAPIHeartbeatLogin": {
+        "title": "Log in to the Native API during the heartbeat",
+        "description": "Keeps a logged-in Native API session open, which GDO blaQ firmware on ESPHome 2026.10 or newer requires to skip the reboot. Turn off to fall back to the older connect-only heartbeat.",
+        "type": "boolean",
+        "default": true,
+        "condition": {
+          "functionBody": "return model.enableNativeAPIHeartbeat !== false;"
+        }
       },
       "garageDoorType": {
         "title": "Garage door device type",

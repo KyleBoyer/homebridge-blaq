@@ -101,6 +101,8 @@ export class BlaQHomebridgePluginPlatform implements DynamicPlatformPlugin {
     return {
       ...manualConfigDevice,
       ...deviceToMerge,
+      // mDNS gives a fresher host/port, but a name the user typed beats the device's friendly_name.
+      displayName: (manualConfigDevice as Partial<ConfigDevice>).displayName || deviceToMerge.displayName,
     };
   }
 
@@ -161,6 +163,7 @@ export class BlaQHomebridgePluginPlatform implements DynamicPlatformPlugin {
       // refresh services
       this.logger.info('Restoring existing accessory from cache:', existingAccessory.displayName);
       existingAccessory.context.device = configDevice;
+      existingAccessory.updateDisplayName(configDevice.displayName);
       this.api.updatePlatformAccessories(this.hubAccessories[configDeviceKey] || [existingAccessory]);
       existingAccessory.services.forEach(service => existingAccessory.removeService(service));
       return { platform: this, accessory: existingAccessory };

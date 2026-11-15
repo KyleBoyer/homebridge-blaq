@@ -45,6 +45,7 @@ export class AutoReconnectingEventSource {
   private lastEventSourceEventDate?: Date;
   private maxIdleBeforeReconnect: number;
   private idleCheckInterval?: NodeJS.Timeout;
+  private hasConnected = false;
   constructor({
     protocol = 'http',
     host,
@@ -98,14 +99,19 @@ export class AutoReconnectingEventSource {
       };
       this.eventSource = new EventSource(`${this.protocol}://${this.host}:${this.port}/${this.path}`, eventSourceOptions);
       this.eventSource.addEventListener('error', error => {
-        this.logger.error('EventSource got error', error);
-        this.logger.error('Reinitializing EventSource...');
+        // Once we've connected, drops (e.g. a device reboot) are expected and we reconnect.
+        const log = this.hasConnected ? this.logger.warn : this.logger.error;
+        log.call(this.logger, 'EventSource got error', error);
+        log.call(this.logger, 'Reinitializing EventSource...');
         this.close();
         if(error.code === 401){
           this.logger.error('Please configure valid credentials for this device!');
         }else{
           this.connectEventSource();
         }
+      });
+      this.eventSource.addEventListener('open', () => {
+        this.hasConnected = true;
       });
       this.eventSource.addEventListener('log', log => {
         this.lastEventSourceEventDate = new Date();
