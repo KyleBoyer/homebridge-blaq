@@ -103,16 +103,23 @@ export class NativeTransport implements BlaQTransport {
   }
 
   // mDNS reports the web server's port; the Native API port is fixed, so only the host matters here.
+  // The working connection is only replaced once the new address answers, so a stale or unreachable
+  // mDNS address (e.g. an IPv6 one) can't strand the device.
   setHost(host: string) {
     if (host === this.params.host) {
       return;
     }
-    this.params.host = host;
-    this.client.disconnect();
-    NativeTransport.openClient(this.params).then(client => {
+    const { logger, logPrefix } = this.params;
+    NativeTransport.openClient({ ...this.params, host }).then(client => {
+      this.client.disconnect();
+      this.params.host = host;
       this.client = client;
       this.attach();
-    }, error => this.params.logger.error(`${this.params.logPrefix} Native API reconnect to ${host} failed:`, error));
+      logger.info(`${logPrefix} Native API moved to ${host}.`);
+    }, error => {
+      const reason = error instanceof Error ? error.message : String(error);
+      logger.warn(`${logPrefix} Native API not reachable at ${host} (${reason}); staying on ${this.params.host}.`);
+    });
   }
 
   close() {

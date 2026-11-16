@@ -8,6 +8,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Entries up to and including 0.4.1 were backfilled from the [GitHub releases][releases]; the
 release notes remain the canonical record for those versions.
 
+## [0.5.2] - 2026-11-16
+
+### Fixed
+
+- Over the Native API, when mDNS discovery reported a new address for a device, the plugin
+  dropped its working connection before trying the new address. If the new address didn't answer
+  (for example a stale or IPv6 address), the device stayed disconnected until Homebridge restarted.
+  The plugin now keeps the working connection and only switches once the new address answers.
+
 ## [0.5.1] - 2026-11-15
 
 ### Fixed
@@ -374,6 +383,7 @@ Initial release.
 [#11]: https://github.com/KyleBoyer/homebridge-blaq/issues/11
 [#12]: https://github.com/KyleBoyer/homebridge-blaq/issues/12
 
+[0.5.2]: https://github.com/KyleBoyer/homebridge-blaq/compare/V0.5.1...V0.5.2
 [0.5.1]: https://github.com/KyleBoyer/homebridge-blaq/compare/V0.5.0...V0.5.1
 [0.5.0]: https://github.com/KyleBoyer/homebridge-blaq/compare/V0.4.2...V0.5.0
 [0.4.2]: https://github.com/KyleBoyer/homebridge-blaq/compare/V0.4.1...V0.4.2
