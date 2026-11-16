@@ -8,6 +8,17 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Entries up to and including 0.4.1 were backfilled from the [GitHub releases][releases]; the
 release notes remain the canonical record for those versions.
 
+## [0.5.1] - 2026-11-15
+
+### Fixed
+
+- Over the Native API, commands now find the door, light, lock and other entities by the same
+  name-based match that state updates use, instead of depending on the client library's entity
+  IDs. On some firmware (reported on GDO blaQ 1.7.0.3 / ESPHome 2026.10.2) commands failed with
+  "Device has no entity matching: cover-garage_door, cover-door" ([#12]).
+- If a command still can't find its entity, the error now lists every entity the device reported,
+  to make the next report actionable.
+
 ## [0.5.0] - 2026-11-15
 
 ### Added
@@ -363,6 +374,7 @@ Initial release.
 [#11]: https://github.com/KyleBoyer/homebridge-blaq/issues/11
 [#12]: https://github.com/KyleBoyer/homebridge-blaq/issues/12
 
+[0.5.1]: https://github.com/KyleBoyer/homebridge-blaq/compare/V0.5.0...V0.5.1
 [0.5.0]: https://github.com/KyleBoyer/homebridge-blaq/compare/V0.4.2...V0.5.0
 [0.4.2]: https://github.com/KyleBoyer/homebridge-blaq/compare/V0.4.1...V0.4.2
 [0.4.1]: https://github.com/KyleBoyer/homebridge-blaq/compare/V0.4.0...V0.4.1

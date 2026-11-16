@@ -1,7 +1,7 @@
 import { Logger } from 'homebridge';
 import stripAnsi from 'strip-ansi';
 import {
-  CoverOperation, EspHomeClient, LockCommand, LockState, LogLevel, TelemetryEvent, entityId, openEspHomeClient,
+  CoverOperation, EntityId, EspHomeClient, LockCommand, LockState, LogLevel, TelemetryEvent, openEspHomeClient,
 } from 'esphome-client';
 import { CurrentOperationType, LockStateType } from '../types.js';
 import { sanitizeObjectID } from '../utils/entity-ids.js';
@@ -120,13 +120,19 @@ export class NativeTransport implements BlaQTransport {
   }
 
   async command(entityKeys: string[], command: EntityCommand) {
-    const key = entityKeys.find(candidate => this.client.hasEntity(candidate));
-    if (!key) {
-      this.params.logger.error(`${this.params.logPrefix} Device has no entity matching: ${entityKeys.join(', ')}`);
+    // Match on the same name-derived key that state events use, then command by the library's own
+    // id for that entity, so a firmware whose ids differ from ours (#12) can't strand commands.
+    const entities = this.client.getEntitiesWithIds();
+    const entity = entityKeys
+      .map(candidate => entities.find(e => `${e.type}-${sanitizeObjectID(e.name)}` === candidate))
+      .find(e => e !== undefined);
+    if (!entity) {
+      this.params.logger.error(`${this.params.logPrefix} Device has no entity matching ${entityKeys.join(', ')}. ` +
+        `It reported: ${entities.map(e => `${e.type} "${e.name}" (${e.id})`).join(', ') || 'no entities'}`);
       return;
     }
-    const objectId = key.slice(key.indexOf('-') + 1);
     const client = this.client;
+    const id: string = entity.id;
     switch (command.action) {
       case 'open':
       case 'close':
@@ -134,21 +140,23 @@ export class NativeTransport implements BlaQTransport {
       case 'set_position': {
         const options = command.action === 'stop' ? { stop: true } :
           { position: command.action === 'set_position' ? command.position : command.action === 'open' ? 1 : 0 };
-        client.command(entityId('cover', objectId), options);
+        client.command(id as EntityId<'cover'>, options);
         return;
       }
       case 'turn_on':
-      case 'turn_off': {
-        const type = key.startsWith('light-') ? 'light' : 'switch';
-        client.command(entityId(type, objectId), { state: command.action === 'turn_on' });
+      case 'turn_off':
+        if (entity.type === 'light') {
+          client.command(id as EntityId<'light'>, { state: command.action === 'turn_on' });
+        } else {
+          client.command(id as EntityId<'switch'>, { state: command.action === 'turn_on' });
+        }
         return;
-      }
       case 'lock':
       case 'unlock':
-        client.command(entityId('lock', objectId), { command: command.action === 'lock' ? LockCommand.LOCK : LockCommand.UNLOCK });
+        client.command(id as EntityId<'lock'>, { command: command.action === 'lock' ? LockCommand.LOCK : LockCommand.UNLOCK });
         return;
       case 'press':
-        client.command(entityId('button', objectId), {});
+        client.command(id as EntityId<'button'>, {});
         return;
     }
   }
